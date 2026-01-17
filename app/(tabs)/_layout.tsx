@@ -1,7 +1,25 @@
-import { Tabs } from 'expo-router';
+import { useCurrent } from '@/hooks/useCurrent';
+import { Tabs, useRouter } from 'expo-router';
 import { Chrome as Home, TestTube, ShoppingCart, FileText, User } from 'lucide-react-native';
+import { useEffect } from 'react';
 
 export default function TabLayout() {
+  const router=useRouter();
+  const { data, isLoading } = useCurrent();
+
+  // ✅ Redirect ONLY after render
+  useEffect(() => {
+    if (!isLoading && !data) {
+      router.replace('/auth/login');
+    }if(!isLoading && data.isNew){
+      router.replace("/auth/signup")
+    }
+  }, [data, isLoading, router]);
+
+  // ✅ Prevent flashing tabs while checking auth
+  if (isLoading || !data) {
+    return null;
+  }
   return (
     <Tabs
       screenOptions={{
