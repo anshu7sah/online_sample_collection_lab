@@ -9,6 +9,7 @@ export default function CartScreen() {
   const { state, dispatch } = useApp();
   const { cart } = state;
 
+  // Remove item from cart
   const removeFromCart = (id: number) => {
     Alert.alert(
       'Remove Item',
@@ -20,13 +21,20 @@ export default function CartScreen() {
     );
   };
 
+  // Calculate total amount safely
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
-      const price = parseInt(item.price.replace(/[^0-9]/g, ''));
+      let price = 0;
+      if (typeof item.price === 'string') {
+        price = parseInt(item.price.replace(/[^0-9]/g, ''));
+      } else if (typeof item.price === 'number') {
+        price = item.price;
+      }
       return total + price;
     }, 0);
   };
 
+  // Proceed to booking
   const proceedToBooking = () => {
     if (cart.length === 0) {
       Alert.alert('Empty Cart', 'Please add items to cart before proceeding.');
@@ -35,6 +43,7 @@ export default function CartScreen() {
     router.push('/tests/booking');
   };
 
+  // ---------------- EMPTY CART ----------------
   if (cart.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
@@ -42,7 +51,7 @@ export default function CartScreen() {
           <Text style={styles.headerTitle}>My Cart</Text>
         </View>
         <View style={styles.emptyContainer}>
-          <ShoppingBag size={64} color="#9CA3AF" />
+          <ShoppingBag size={64} color="#16A34A" />
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Text style={styles.emptySubtitle}>
             Add some tests or packages to get started
@@ -66,10 +75,10 @@ export default function CartScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {cart.map((item) => (
-          <View key={item.id} style={styles.cartItem}>
+          <View key={`${item.type}-${item.id}`} style={styles.cartItem}>
             <View style={styles.itemInfo}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemType}>
+              <Text style={[styles.itemType, item.type === 'package' ? styles.packageLabel : styles.testLabel]}>
                 {item.type === 'package' ? 'Lab Package' : 'Individual Test'}
               </Text>
               <Text style={styles.itemPrice}>{item.price}</Text>
@@ -98,11 +107,10 @@ export default function CartScreen() {
   );
 }
 
+// ---------------- STYLES ----------------
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
+  container: { flex: 1, backgroundColor: '#F0FDF4' },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -111,122 +119,58 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#D1FAE5',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#166534' },
+
+  content: { flex: 1, padding: 16 },
+
   cartItem: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 2,
   },
-  itemInfo: {
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: 16, fontWeight: '600', color: '#166534', marginBottom: 4 },
   itemType: {
     fontSize: 12,
-    color: '#6B7280',
-    backgroundColor: '#F3F4F6',
+    color: '#ffffff',
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     marginBottom: 8,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  removeButton: {
-    padding: 8,
-    justifyContent: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 16,
-    marginBottom: 8,
   },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  browseButton: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  browseButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  footer: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  totalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  totalAmount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
+  packageLabel: { backgroundColor: '#D1FAE5', color: '#065F46' },
+  testLabel: { backgroundColor: '#BBF7D0', color: '#065F46' },
+  itemPrice: { fontSize: 16, fontWeight: '700', color: '#065F46' },
+  removeButton: { padding: 8, justifyContent: 'center' },
+
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  emptyTitle: { fontSize: 20, fontWeight: '600', color: '#166534', marginTop: 16, marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, color: '#4B5563', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  browseButton: { backgroundColor: '#16A34A', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  browseButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+
+  footer: { backgroundColor: '#FFFFFF', padding: 20, borderTopWidth: 1, borderTopColor: '#D1FAE5' },
+  totalContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  totalLabel: { fontSize: 16, fontWeight: '600', color: '#166534' },
+  totalAmount: { fontSize: 20, fontWeight: '700', color: '#16A34A' },
   proceedButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#16A34A',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 16,
     borderRadius: 12,
   },
-  proceedButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginRight: 8,
-  },
+  proceedButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', marginRight: 8 },
 });

@@ -8,6 +8,7 @@ export default function TestsLayout() {
       <Stack.Screen name="all-tests" options={{ title: 'All Tests', headerBackTitle: 'Back' }} />
       <Stack.Screen name="test-details" options={{ title: 'Test Details', headerBackTitle: 'Back' }} />
       <Stack.Screen name="booking" options={{ title: 'Book Test', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="package-details" options={{ title: 'Package Details', headerBackTitle: 'Back' }} />
     </Stack>
   );
 }

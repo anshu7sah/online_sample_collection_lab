@@ -40,3 +40,35 @@ export type TestFilters = Partial<{
   maxAmount: number
   specialInstruction: string
 }>
+
+export interface Package {
+  id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  tests: Test[]; // array of full test objects
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Filters for fetching packages
+export type PackageFilters = Partial<{
+  name: string;
+  minPrice: number;
+  maxPrice: number;
+  testName: string;      // filter by included test's name
+  testCode: string;      // filter by included test's code
+  department: string;    // filter by included test's department
+  methodName: string;    // filter by included test's method
+  specimen: string;
+  specimenVolume: string;
+  container: string;
+  reported: string;
+  specialInstruction: string;
+}>;
+
+// Pagination response for packages
+export interface PackageApiResponse {
+  data: Package[];
+  pagination: Pagination;
+}

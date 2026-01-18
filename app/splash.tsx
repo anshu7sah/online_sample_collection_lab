@@ -15,17 +15,25 @@ export default function SplashScreen() {
       easing: Easing.ease,
       useNativeDriver: true,
     }).start();
+  }, []);
+
+  useEffect(() => {
+    // ⏳ WAIT until auth bootstrap finishes
+    if (!state.authReady) return;
 
     const timer = setTimeout(() => {
-      if (state.isAuthenticated) {
-        router.replace('/(tabs)'); // home if logged in
+      console.log("state after auth ready",state);
+      console.log("auth ready",state.authReady);
+      console.log("token",state.token);
+      if (state.token) {
+        router.replace('/(tabs)');
       } else {
-        router.replace('/auth/login'); // login if not
+        router.replace('/auth/login');
       }
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [state.isAuthenticated]);
+  }, [state.authReady, state.token]);
 
   return (
     <View style={styles.container}>

@@ -1,121 +1,206 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Eye } from 'lucide-react-native';
+import { Eye, Search, ChevronDown } from 'lucide-react-native';
 import { router } from 'expo-router';
 
+import { useDebounce } from '@/hooks/useDebounce';
+import { usePackages } from '@/hooks/usePackages';
+
+const DEFAULT_PACKAGE_IMAGE =
+  'https://images.pexels.com/photos/4386466/pexels-photo-4386466.jpeg?auto=compress&cs=tinysrgb&w=400';
+
 export default function PackagesScreen() {
-  const packages = [
-    {
-      id: 1,
-      name: 'Full Body Checkup',
-      price: 'NPR 2,500',
-      originalPrice: 'NPR 3,200',
-      description: 'Complete health assessment with 40+ parameters',
-      image: 'https://images.pexels.com/photos/4386466/pexels-photo-4386466.jpeg?auto=compress&cs=tinysrgb&w=400',
-      tests: 42,
+  const [packageSearch, setPackageSearch] = useState('');
+  const [testSearch, setTestSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  const debouncedPackageSearch = useDebounce(packageSearch, 400);
+  const debouncedTestSearch = useDebounce(testSearch, 400);
+
+  const { data, isLoading, isFetching } = usePackages({
+    page,
+    limit: 10,
+    filters: {
+      name: debouncedPackageSearch || undefined,
+      testName: debouncedTestSearch || undefined,
     },
-    {
-      id: 2,
-      name: 'Diabetes Panel',
-      price: 'NPR 800',
-      originalPrice: 'NPR 1,200',
-      description: 'Comprehensive diabetes screening package',
-      image: 'https://images.pexels.com/photos/6823568/pexels-photo-6823568.jpeg?auto=compress&cs=tinysrgb&w=400',
-      tests: 8,
-    },
-    {
-      id: 3,
-      name: 'Heart Health Package',
-      price: 'NPR 1,200',
-      originalPrice: 'NPR 1,800',
-      description: 'Complete cardiovascular health assessment',
-      image: 'https://images.pexels.com/photos/4386477/pexels-photo-4386477.jpeg?auto=compress&cs=tinysrgb&w=400',
-      tests: 15,
-    },
-    {
-      id: 4,
-      name: 'Liver Function Test',
-      price: 'NPR 600',
-      originalPrice: 'NPR 900',
-      description: 'Comprehensive liver health evaluation',
-      image: 'https://images.pexels.com/photos/5207262/pexels-photo-5207262.jpeg?auto=compress&cs=tinysrgb&w=400',
-      tests: 12,
-    },
-    {
-      id: 5,
-      name: 'Women\'s Health Panel',
-      price: 'NPR 1,800',
-      originalPrice: 'NPR 2,400',
-      description: 'Specialized health checkup for women',
-      image: 'https://images.pexels.com/photos/4386447/pexels-photo-4386447.jpeg?auto=compress&cs=tinysrgb&w=400',
-      tests: 25,
-    },
-    {
-      id: 6,
-      name: 'Senior Citizen Package',
-      price: 'NPR 2,200',
-      originalPrice: 'NPR 3,000',
-      description: 'Comprehensive health package for seniors',
-      image: 'https://images.pexels.com/photos/4386464/pexels-photo-4386464.jpeg?auto=compress&cs=tinysrgb&w=400',
-      tests: 35,
-    },
-  ];
+  });
+
+  const packages = data?.data || [];
+  const totalPages = data?.pagination?.totalPages || 1;
+
+  const handleLoadMore = () => {
+    if (page < totalPages) {
+      setPage((prev) => prev + 1);
+    }
+  };
+
+  // Reset page to 1 when search changes
+  React.useEffect(() => {
+    setPage(1);
+  }, [debouncedPackageSearch, debouncedTestSearch]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          {packages.map((pkg) => (
-            <TouchableOpacity 
-              key={pkg.id} 
-              style={styles.packageCard}
-              onPress={() => router.push({ pathname: '/tests/test-details', params: { id: pkg.id, type: 'package' } })}
-            >
-              <Image source={{ uri: pkg.image }} style={styles.packageImage} />
-              <View style={styles.packageContent}>
-                <View style={styles.packageHeader}>
-                  <Text style={styles.packageName}>{pkg.name}</Text>
-                  <Text style={styles.testCount}>{pkg.tests} tests</Text>
-                </View>
-                <Text style={styles.packageDescription}>{pkg.description}</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>{pkg.price}</Text>
-                  <Text style={styles.originalPrice}>{pkg.originalPrice}</Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.viewButton}
-                  onPress={() => router.push({ pathname: '/tests/test-details', params: { id: pkg.id, type: 'package' } })}
-                >
-                  <Eye size={16} color="#2563EB" />
-                  <Text style={styles.viewButtonText}>View Details</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        
+        {/* -------- SEARCH CARD -------- */}
+        <View style={styles.searchCard}>
+          <Text style={styles.searchCardTitle}>Find Packages</Text>
+
+          <View style={styles.searchBox}>
+            <Search size={18} color="#6B7280" />
+            <TextInput
+              placeholder="Search packages..."
+              value={packageSearch}
+              onChangeText={setPackageSearch}
+              style={styles.searchInput}
+              placeholderTextColor="#6B7280"
+            />
+          </View>
+
+          <View style={styles.searchBox}>
+            <Search size={18} color="#6B7280" />
+            <TextInput
+              placeholder="Search by test name..."
+              value={testSearch}
+              onChangeText={setTestSearch}
+              style={styles.searchInput}
+              placeholderTextColor="#6B7280"
+            />
+          </View>
         </View>
+
+        {/* -------- Loading -------- */}
+        {isLoading && (
+          <ActivityIndicator
+            size="large"
+            color="#2563EB"
+            style={{ marginTop: 40 }}
+          />
+        )}
+
+        {/* -------- Packages List -------- */}
+        {packages.map((pkg: any) => (
+          <TouchableOpacity
+            key={pkg.id}
+            style={styles.packageCard}
+            onPress={() =>
+              router.push({
+                pathname: '/tests/test-details',
+                params: { id: pkg.id, type: 'package' },
+              })
+            }
+          >
+            <Image
+              source={{ uri: DEFAULT_PACKAGE_IMAGE }}
+              style={styles.packageImage}
+            />
+
+            <View style={styles.packageContent}>
+              <View style={styles.packageHeader}>
+                <Text style={styles.packageName}>{pkg.name}</Text>
+                {pkg.tests?.length ? (
+                  <Text style={styles.testCount}>{pkg.tests.length} tests</Text>
+                ) : null}
+              </View>
+
+              {pkg.description ? (
+                <Text style={styles.packageDescription}>{pkg.description}</Text>
+              ) : null}
+
+              <View style={styles.priceContainer}>
+                <Text style={styles.price}>NPR {pkg.price}</Text>
+              </View>
+
+              <View style={styles.viewButton}>
+                <Eye size={16} color="#2563EB" />
+                <Text style={styles.viewButtonText}>View Details</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {!isLoading && packages.length === 0 && (
+          <Text style={styles.noDataText}>No packages found.</Text>
+        )}
+
+        {/* -------- Load More Button -------- */}
+        {!isLoading && page < totalPages && (
+          <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore}>
+            {isFetching ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.loadMoreText}>Load More</Text>
+                <ChevronDown size={16} color="#fff" style={{ marginLeft: 6 }} />
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  content: {
-    padding: 16,
-  },
-  packageCard: {
+  container: { flex: 1, backgroundColor: '#F0FDFD' },
+
+  searchCard: {
     backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
     borderRadius: 16,
-    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
+  },
+  searchCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  searchInput: {
+    marginLeft: 8,
+    fontSize: 16,
+    flex: 1,
+    color: '#1F2937',
+  },
+
+  packageCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   packageImage: {
     width: '100%',
@@ -123,9 +208,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
-  packageContent: {
-    padding: 16,
-  },
+  packageContent: { padding: 16 },
+
   packageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -142,7 +226,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#6B7280',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#E0F2FE',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -153,29 +237,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 12,
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
+
+  priceContainer: { marginBottom: 16 },
   price: {
     fontSize: 20,
     fontWeight: '700',
     color: '#2563EB',
-    marginRight: 8,
   },
-  originalPrice: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textDecorationLine: 'line-through',
-  },
+
   viewButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EFF6FF',
     paddingVertical: 12,
-    paddingHorizontal: 16,
     borderRadius: 8,
   },
   viewButtonText: {
@@ -183,5 +258,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2563EB',
     marginLeft: 4,
+  },
+
+  noDataText: {
+    textAlign: 'center',
+    marginTop: 40,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+
+  loadMoreButton: {
+    backgroundColor: '#2563EB',
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

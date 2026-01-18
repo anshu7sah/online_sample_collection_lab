@@ -1,11 +1,32 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Phone, Mail, MapPin, Calendar, Settings, LogOut, Bell } from 'lucide-react-native';
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  Settings,
+  LogOut,
+  Bell,
+  ArrowRight,
+} from 'lucide-react-native';
 import { useApp } from '@/contexts/AppContext';
+import { useCurrent } from '@/hooks/useCurrent'; // <-- your API hook for current user
+import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
+  const { data: user, isLoading } = useCurrent();
+  const router=useRouter();
 
   const handleLogout = () => {
     Alert.alert(
@@ -13,7 +34,13 @@ export default function ProfileScreen() {
       'Are you sure you want to logout?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => dispatch({ type: 'LOGOUT' }) },
+        { text: 'Logout', style: 'destructive', onPress: () => {
+          
+          dispatch({ type: 'LOGOUT' }) 
+          router.replace('/auth/login')
+
+        
+        }},
       ]
     );
   };
@@ -25,51 +52,71 @@ export default function ProfileScreen() {
     { icon: Settings, title: 'Settings', subtitle: 'App preferences and privacy' },
   ];
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* ----- HEADER ----- */}
         <View style={styles.header}>
           <View style={styles.profileIcon}>
-            <User size={32} color="#2563EB" />
+            <User size={36} color="#16A34A" />
           </View>
-          <Text style={styles.userName}>John Doe</Text>
-          <Text style={styles.userEmail}>john.doe@example.com</Text>
+          <Text style={styles.userName}>{user?.name || 'Unnamed User'}</Text>
+          <Text style={styles.userEmail}>{user?.email || user?.mobile}</Text>
         </View>
 
+        {/* ----- INFO CARD ----- */}
         <View style={styles.infoCard}>
-          <View style={styles.infoItem}>
-            <Phone size={20} color="#6B7280" />
-            <Text style={styles.infoText}>+977 98xxxxxxxx</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Mail size={20} color="#6B7280" />
-            <Text style={styles.infoText}>john.doe@example.com</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MapPin size={20} color="#6B7280" />
-            <Text style={styles.infoText}>Kathmandu, Nepal</Text>
-          </View>
+          {user?.mobile && (
+            <View style={styles.infoItem}>
+              <Phone size={20} color="#6B7280" />
+              <Text style={styles.infoText}>{user.mobile}</Text>
+            </View>
+          )}
+          {user?.email && (
+            <View style={styles.infoItem}>
+              <Mail size={20} color="#6B7280" />
+              <Text style={styles.infoText}>{user.email}</Text>
+            </View>
+          )}
+          {user?.dob && (
+            <View style={styles.infoItem}>
+              <Calendar size={20} color="#6B7280" />
+              <Text style={styles.infoText}>{new Date(user.dob).toDateString()}</Text>
+            </View>
+          )}
         </View>
 
+        {/* ----- MENU ----- */}
         <View style={styles.section}>
           {profileItems.map((item, index) => (
             <TouchableOpacity key={index} style={styles.menuItem}>
               <View style={styles.menuIcon}>
-                <item.icon size={20} color="#6B7280" />
+                <item.icon size={20} color="#16A34A" />
               </View>
               <View style={styles.menuContent}>
                 <Text style={styles.menuTitle}>{item.title}</Text>
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
+              <ArrowRight size={18} color="#6B7280" />
             </TouchableOpacity>
           ))}
         </View>
 
+        {/* ----- LOGOUT ----- */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <LogOut size={20} color="#DC2626" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
+        {/* ----- FOOTER ----- */}
         <View style={styles.footer}>
           <Text style={styles.versionText}>Sukra Polyclinic v1.0.0</Text>
           <Text style={styles.footerText}>Your health, our priority</Text>
@@ -79,10 +126,20 @@ export default function ProfileScreen() {
   );
 }
 
+/* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F0FDF4', // light green background
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#16A34A',
   },
   header: {
     backgroundColor: '#FFFFFF',
@@ -93,7 +150,7 @@ const styles = StyleSheet.create({
   profileIcon: {
     width: 80,
     height: 80,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#DCFCE7',
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -102,12 +159,12 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#065F46',
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#4B5563',
   },
   infoCard: {
     backgroundColor: '#FFFFFF',
@@ -128,7 +185,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
-    color: '#1F2937',
+    color: '#065F46',
     marginLeft: 16,
   },
   section: {
@@ -148,11 +205,12 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+    justifyContent: 'space-between',
   },
   menuIcon: {
     width: 40,
     height: 40,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#ECFDF5',
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -160,16 +218,17 @@ const styles = StyleSheet.create({
   },
   menuContent: {
     flex: 1,
+    marginLeft: 8,
   },
   menuTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#065F46',
     marginBottom: 2,
   },
   menuSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#4B5563',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -203,7 +262,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#4B5563',
     fontStyle: 'italic',
   },
 });

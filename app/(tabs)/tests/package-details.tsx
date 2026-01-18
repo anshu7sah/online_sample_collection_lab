@@ -11,43 +11,43 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ShoppingCart, Check } from "lucide-react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useApp } from "@/contexts/AppContext";
-import { useSingleTest } from "@/hooks/useSingleTest";
+import { useSinglePackage } from "@/hooks/useSinglePackage";
 
-export default function TestDetailsScreen() {
+export default function PackageDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const testId = Number(id);
+  const packageId = Number(id);
 
-  const { state, dispatch } = useApp();
-  const { data: test, isLoading, isError } = useSingleTest(testId);
+  const { dispatch } = useApp();
+  const { data: pkg, isLoading, isError } = useSinglePackage({ id: packageId });
 
   const addToCart = () => {
-    if (!test) return;
+    if (!pkg) return;
 
     dispatch({
       type: "ADD_TO_CART",
       payload: {
-        id: test.id,
-        name: test.testName,
-        price: test.amount,
-        type: "test",
+        id: pkg.id,
+        name: pkg.name,
+        price: pkg.price,
+        type: "package",
       },
     });
 
-    Alert.alert("Added to Cart", `${test.testName} has been added to your cart.`);
+    Alert.alert("Added to Cart", `${pkg.name} has been added to your cart.`);
   };
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.loadingText}>Loading test details...</Text>
+        <Text style={styles.loadingText}>Loading package details...</Text>
       </SafeAreaView>
     );
   }
 
-  if (isError || !test) {
+  if (isError || !pkg) {
     return (
       <SafeAreaView style={styles.center}>
-        <Text style={styles.errorText}>Test details not found.</Text>
+        <Text style={styles.errorText}>Package not found.</Text>
       </SafeAreaView>
     );
   }
@@ -55,53 +55,45 @@ export default function TestDetailsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* -------- Header -------- */}
         <View style={styles.header}>
-          <Text style={styles.testName}>{test.testName}</Text>
-          <Text style={styles.price}>NPR {test.amount}</Text>
+          <Text style={styles.packageName}>{pkg.name}</Text>
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>NPR {pkg.price}</Text>
+          </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Department</Text>
-          <Text style={styles.description}>{test.department}</Text>
-        </View>
+        {/* -------- Description -------- */}
+        {pkg.description && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.description}>{pkg.description}</Text>
+          </View>
+        )}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Test Details</Text>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Test Code:</Text>
-            <Text style={styles.parameterText}>{test.testCode}</Text>
+        {/* -------- Included Tests -------- */}
+        {pkg.tests?.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Included Tests ({pkg.tests.length})</Text>
+            {pkg.tests.map((item) => (
+              <View key={item.id} style={styles.parameterItem}>
+                <Check size={16} color="#16A34A" />
+                <Text style={styles.parameterText}>{item.testName}</Text>
+              </View>
+            ))}
           </View>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Method:</Text>
-            <Text style={styles.parameterText}>{test.methodName}</Text>
-          </View>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Specimen:</Text>
-            <Text style={styles.parameterText}>
-              {test.specimen} ({test.specimenVolume}, {test.container})
-            </Text>
-          </View>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Reported:</Text>
-            <Text style={styles.parameterText}>{test.reported}</Text>
-          </View>
-          {test.specialInstruction && (
-            <View style={styles.parameterItem}>
-              <Text style={styles.parameterLabel}>Special Instructions:</Text>
-              <Text style={styles.parameterText}>{test.specialInstruction}</Text>
-            </View>
-          )}
-        </View>
+        )}
       </ScrollView>
 
+      {/* -------- Footer: Add to Cart -------- */}
       <View style={styles.footer}>
         <View style={styles.footerPricing}>
-          <Text style={styles.footerPriceLabel}>Price</Text>
-          <Text style={styles.footerPrice}>NPR {test.amount}</Text>
+          <Text style={styles.footerPriceLabel}>Total Amount</Text>
+          <Text style={styles.footerPrice}>NPR {pkg.price}</Text>
         </View>
         <TouchableOpacity style={styles.addToCartButton} onPress={addToCart}>
           <ShoppingCart size={20} color="#FFFFFF" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+          <Text style={styles.addToCartText}>Add Package to Cart</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -110,40 +102,41 @@ export default function TestDetailsScreen() {
 
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F0FDFD",
-  },
+  container: { flex: 1, backgroundColor: "#F0FDFD" },
   content: { flex: 1 },
+
   header: {
     backgroundColor: "#FFFFFF",
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
+    marginBottom: 8,
   },
-  testName: {
+  packageName: {
     fontSize: 22,
     fontWeight: "700",
     color: "#1F2937",
     marginBottom: 8,
   },
+  priceContainer: {},
   price: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#16A34A", // changed to green
+    color: "#16A34A", // green
   },
+
   section: {
     backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
     marginTop: 8,
     padding: 20,
     borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
@@ -151,18 +144,19 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     marginBottom: 12,
   },
-  description: { fontSize: 14, color: "#6B7280", lineHeight: 20 },
+  description: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+
   parameterItem: {
     flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
-    flexWrap: "wrap",
   },
-  parameterLabel: {
-    fontWeight: "600",
-    color: "#1F2937",
-    marginRight: 4,
-  },
-  parameterText: { color: "#1F2937", fontSize: 14 },
+  parameterText: { fontSize: 14, color: "#1F2937", marginLeft: 8 },
+
   footer: {
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
@@ -188,6 +182,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     marginLeft: 8,
   },
+
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   loadingText: { fontSize: 16, color: "#6B7280" },
   errorText: { fontSize: 16, color: "red" },

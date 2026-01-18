@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -10,7 +9,7 @@ export default function RootLayout() {
   return (
     <AppProvider>
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="splash" />
+        <Stack.Screen name="splash" options={{ headerShown: false }} />
         <Stack.Screen name="auth/login" />
         <Stack.Screen name="auth/signup" />
         <Stack.Screen name="auth/otp" />
