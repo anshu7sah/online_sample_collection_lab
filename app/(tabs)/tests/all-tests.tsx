@@ -9,7 +9,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Filter, Plus, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import {
+  Search,
+  Filter,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react-native';
+import { router } from 'expo-router';
+import Toast from 'react-native-toast-message';
+
 import { useApp } from '@/contexts/AppContext';
 import { useTests } from '@/hooks/useTests';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -47,6 +56,14 @@ export default function AllTestsScreen() {
         type: 'test',
       },
     });
+
+    Toast.show({
+      type: 'success',
+      text1: 'Added to cart',
+      text2: test.testName,
+      position: 'bottom',
+      visibilityTime: 1800,
+    });
   };
 
   const goNext = () => page < totalPages && setPage((prev) => prev + 1);
@@ -77,40 +94,88 @@ export default function AllTestsScreen() {
           <ActivityIndicator size="large" color="#007E7C" />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           {tests.map((test) => (
-            <View key={test.id} style={styles.testCard}>
-              <View style={styles.testInfo}>
-                <Text style={styles.testName}>{test.testName}</Text>
-                {test.department && <Text style={styles.testCategory}>{test.department}</Text>}
-                <Text style={styles.testPrice}>NPR {test.amount}</Text>
+            <TouchableOpacity
+              key={test.id}
+              activeOpacity={0.85}
+              onPress={() =>
+                router.push({
+                  pathname: '/tests/test-details',
+                  params: { id: test.id, type: 'test' },
+                })
+              }
+            >
+              <View style={styles.testCard}>
+                <View style={styles.testInfo}>
+                  <Text style={styles.testName}>{test.testName}</Text>
+                  {test.department && (
+                    <Text style={styles.testCategory}>
+                      {test.department}
+                    </Text>
+                  )}
+                  <Text style={styles.testPrice}>NPR {test.amount}</Text>
+                </View>
+
+                {/* + BUTTON */}
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={(e) => {
+                    e.stopPropagation(); // prevent navigation
+                    addToCart(test);
+                  }}
+                >
+                  <Plus size={16} color="#007E7C" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.addButton} onPress={() => addToCart(test)}>
-                <Plus size={16} color="#007E7C" />
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           ))}
 
-          {/* Pagination */}
+          {/* Pagination (UNCHANGED) */}
           <View style={styles.pagination}>
             <TouchableOpacity
               style={[styles.pageButton, page === 1 && styles.disabled]}
               onPress={goPrev}
               disabled={page === 1}
             >
-              <ChevronLeft size={20} color={page === 1 ? '#A1A1AA' : '#007E7C'} />
-              <Text style={[styles.pageText, page === 1 && styles.disabledText]}>Prev</Text>
+              <ChevronLeft
+                size={20}
+                color={page === 1 ? '#A1A1AA' : '#007E7C'}
+              />
+              <Text
+                style={[styles.pageText, page === 1 && styles.disabledText]}
+              >
+                Prev
+              </Text>
             </TouchableOpacity>
+
             <Text style={styles.pageCounter}>
               Page {page} / {totalPages}
             </Text>
+
             <TouchableOpacity
-              style={[styles.pageButton, page === totalPages && styles.disabled]}
+              style={[
+                styles.pageButton,
+                page === totalPages && styles.disabled,
+              ]}
               onPress={goNext}
               disabled={page === totalPages}
             >
-              <Text style={[styles.pageText, page === totalPages && styles.disabledText]}>Next</Text>
-              <ChevronRight size={20} color={page === totalPages ? '#A1A1AA' : '#007E7C'} />
+              <Text
+                style={[
+                  styles.pageText,
+                  page === totalPages && styles.disabledText,
+                ]}
+              >
+                Next
+              </Text>
+              <ChevronRight
+                size={20}
+                color={page === totalPages ? '#A1A1AA' : '#007E7C'}
+              />
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -118,6 +183,7 @@ export default function AllTestsScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F0FDFD' }, // Home screen background color

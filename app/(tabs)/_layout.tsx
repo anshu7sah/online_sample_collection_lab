@@ -7,11 +7,14 @@ export default function TabLayout() {
   const router=useRouter();
   const { data, isLoading } = useCurrent();
 
+
   // ✅ Redirect ONLY after render
   useEffect(() => {
+      console.log("Current User Data:", data);
+
     if (!isLoading && !data) {
       router.replace('/auth/login');
-    }if(!isLoading && data.isNew){
+    } else if (!isLoading && data?.isNew){
       router.replace("/auth/signup")
     }
   }, [data, isLoading, router]);

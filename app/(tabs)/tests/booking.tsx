@@ -1,353 +1,588 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, Calendar, Building, CreditCard, CircleCheck as CheckCircle } from 'lucide-react-native';
+import React, { useRef, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Dimensions,
+} from "react-native";
+import PagerView from "react-native-pager-view";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
+import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Checkbox, RadioButton } from "react-native-paper";
+import Toast from "react-native-toast-message";
+import { useRouter } from "expo-router";
+
+const { width } = Dimensions.get("window");
+
+/* ================= CONSTANTS ================= */
+
+const COLORS = {
+  teal: "#008080",
+  gold: "#FFB800",
+  grey: "#F5F5F5",
+  dark: "#6B7280",
+  white: "#FFFFFF",
+  blue: "#3B82F6",
+};
+
+const TIME_SLOTS = [
+  "12:00 - 13:00",
+  "13:00 - 14:00",
+  "14:00 - 15:00",
+  "15:00 - 16:00",
+  "16:00 - 17:00",
+  "17:00 - 18:00",
+  "18:00 - 19:00",
+  "21:00 - 22:00",
+];
+
+const DOCTORS = ["Dr. S. Yadav", "Dr. R. Jha", "Dr. A. Mishra"];
+
+/* ================= UTILS ================= */
+
+const calculateAge = (dob: Date) =>
+  Math.floor((Date.now() - dob.getTime()) / 31557600000);
+
+/* ================= MAIN ================= */
 
 export default function BookingScreen() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedLocation, setSelectedLocation] = useState('');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [selectedLab, setSelectedLab] = useState('');
-  const [selectedPayment, setSelectedPayment] = useState('');
+  const router = useRouter();
+  const pagerRef = useRef<PagerView>(null);
+  const step = useSharedValue(0);
 
-  const steps = [
-    { id: 1, title: 'Location', icon: MapPin },
-    { id: 2, title: 'Date & Time', icon: Calendar },
-    { id: 3, title: 'Lab Location', icon: Building },
-    { id: 4, title: 'Payment', icon: CreditCard },
-    { id: 5, title: 'Confirmation', icon: CheckCircle },
-  ];
+  const [profile, setProfile] = useState<"SELF" | "OTHER">("SELF");
+  const [dob, setDob] = useState<Date | null>(null);
+  const [showDob, setShowDob] = useState(false);
 
-  const locations = [
-    'Kathmandu, Thamel',
-    'Kathmandu, Baneshwor',
-    'Lalitpur, Patan',
-    'Bhaktapur, Durbar Square',
-  ];
+  const [location, setLocation] = useState<any>(null);
+  const [manualLocation, setManualLocation] = useState(false);
 
-  const labs = [
-    { name: 'Sukra Polyclinic - Main Branch', city: 'Kathmandu', contact: '+977-1-4567890' },
-    { name: 'Sukra Polyclinic - Patan', city: 'Lalitpur', contact: '+977-1-4567891' },
-    { name: 'Sukra Polyclinic - Bhaktapur', city: 'Bhaktapur', contact: '+977-1-4567892' },
-  ];
+  const [availability, setAvailability] = useState<
+    "TODAY" | "TOMORROW" | "DAY_AFTER" | "CALENDAR" | null
+  >(null);
+  const [date, setDate] = useState<Date | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
-  const paymentMethods = [
-    { id: 'cod', name: 'Cash on Delivery', subtitle: 'Pay when sample is collected' },
-    { id: 'esewa', name: 'eSewa', subtitle: 'Digital wallet payment' },
-    { id: 'khalti', name: 'Khalti', subtitle: 'Digital wallet payment' },
-  ];
+  const [timeSlot, setTimeSlot] = useState("");
+  const [hasPrescription, setHasPrescription] = useState(false);
 
-  const handleNext = () => {
-    if (currentStep < 5) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      Alert.alert('Booking Confirmed!', 'Your test has been booked successfully.');
-    }
+  const [prc, setPrc] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+
+  const [form, setForm] = useState({
+    name: "Anshu Sah",
+    age: "23",
+    mobile: "98XXXXXXXX",
+    address: "",
+  });
+
+  /* ================= NAV ================= */
+
+  const next = () => {
+    pagerRef.current?.setPage(step.value + 1);
+    step.value += 1;
   };
 
-  const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Select Your Location</Text>
-            <Text style={styles.stepSubtitle}>Choose your home location for sample collection</Text>
-            {locations.map((location, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.optionCard, selectedLocation === location && styles.selectedOption]}
-                onPress={() => setSelectedLocation(location)}
-              >
-                <Text style={styles.optionText}>{location}</Text>
-                {selectedLocation === location && <CheckCircle size={20} color="#2563EB" />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        );
-      case 2:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Select Date & Time</Text>
-            <Text style={styles.stepSubtitle}>Choose convenient date and time for sample collection</Text>
-            <TouchableOpacity
-              style={[styles.optionCard, selectedDate && styles.selectedOption]}
-              onPress={() => setSelectedDate('2024-01-25 at 10:00 AM')}
-            >
-              <Text style={styles.optionText}>Tomorrow, January 25, 2024 - 10:00 AM</Text>
-              {selectedDate && <CheckCircle size={20} color="#2563EB" />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.optionCard]}
-              onPress={() => setSelectedDate('2024-01-26 at 9:00 AM')}
-            >
-              <Text style={styles.optionText}>January 26, 2024 - 9:00 AM</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      case 3:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Select Lab Location</Text>
-            <Text style={styles.stepSubtitle}>Choose lab for processing your samples</Text>
-            {labs.map((lab, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.optionCard, selectedLab === lab.name && styles.selectedOption]}
-                onPress={() => setSelectedLab(lab.name)}
-              >
-                <View style={styles.labInfo}>
-                  <Text style={styles.labName}>{lab.name}</Text>
-                  <Text style={styles.labCity}>{lab.city}</Text>
-                  <Text style={styles.labContact}>{lab.contact}</Text>
-                </View>
-                {selectedLab === lab.name && <CheckCircle size={20} color="#2563EB" />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        );
-      case 4:
-        return (
-          <View style={styles.stepContent}>
-            <Text style={styles.stepTitle}>Payment Method</Text>
-            <Text style={styles.stepSubtitle}>Choose your preferred payment method</Text>
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method.id}
-                style={[styles.optionCard, selectedPayment === method.id && styles.selectedOption]}
-                onPress={() => setSelectedPayment(method.id)}
-              >
-                <View style={styles.paymentInfo}>
-                  <Text style={styles.paymentName}>{method.name}</Text>
-                  <Text style={styles.paymentSubtitle}>{method.subtitle}</Text>
-                </View>
-                {selectedPayment === method.id && <CheckCircle size={20} color="#2563EB" />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        );
-      case 5:
-        return (
-          <View style={styles.stepContent}>
-            <View style={styles.confirmationIcon}>
-              <CheckCircle size={64} color="#16A34A" />
-            </View>
-            <Text style={styles.confirmationTitle}>Booking Confirmed!</Text>
-            <Text style={styles.confirmationText}>
-              Your test has been successfully booked. You will receive a confirmation SMS shortly.
-            </Text>
-            <View style={styles.bookingSummary}>
-              <Text style={styles.summaryTitle}>Booking Summary</Text>
-              <Text style={styles.summaryItem}>Location: {selectedLocation}</Text>
-              <Text style={styles.summaryItem}>Date & Time: {selectedDate}</Text>
-              <Text style={styles.summaryItem}>Lab: {selectedLab}</Text>
-              <Text style={styles.summaryItem}>Payment: {paymentMethods.find(p => p.id === selectedPayment)?.name}</Text>
-            </View>
-          </View>
-        );
-      default:
-        return null;
-    }
+  const back = () => {
+    pagerRef.current?.setPage(step.value - 1);
+    step.value -= 1;
   };
+
+  /* ================= STEP FILL ================= */
+
+  const fillStyle = useAnimatedStyle(() => ({
+    height: withTiming(step.value * 90, { duration: 300 }),
+  }));
+
+  /* ================= LOCATION ================= */
+
+  const getCurrentLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") return;
+    const loc = await Location.getCurrentPositionAsync({});
+    setLocation(loc.coords);
+    setManualLocation(false);
+  };
+
+  /* ================= DATE HANDLING ================= */
+
+  const selectQuickDate = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    setDate(d);
+    setAvailability(
+      days === 0 ? "TODAY" : days === 1 ? "TOMORROW" : "DAY_AFTER"
+    );
+  };
+
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.progressContainer}>
-        {steps.map((step) => (
-          <View key={step.id} style={styles.stepIndicator}>
-            <View style={[styles.stepCircle, currentStep >= step.id && styles.activeStep]}>
-              <step.icon size={16} color={currentStep >= step.id ? '#FFFFFF' : '#9CA3AF'} />
-            </View>
-            <Text style={[styles.stepLabel, currentStep >= step.id && styles.activeStepLabel]}>
-              {step.title}
-            </Text>
+    <View style={{ flex: 1, backgroundColor: COLORS.grey }}>
+      {/* ===== Step Indicator ===== */}
+      <View style={styles.stepper}>
+        <View style={styles.stepLine}>
+          <Animated.View style={[styles.stepFill, fillStyle]} />
+        </View>
+        {[1, 2, 3].map((s, i) => (
+          <View
+            key={s}
+            style={[
+              styles.stepCircle,
+              step.value >= i && styles.stepCircleActive,
+            ]}
+          >
+            <Text style={styles.stepText}>{s}</Text>
           </View>
         ))}
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {renderStepContent()}
-      </ScrollView>
+      <PagerView ref={pagerRef} style={{ flex: 1 }} scrollEnabled={false}>
+        {/* ================= STEP 1 ================= */}
+        <ScrollView key="1" contentContainerStyle={styles.page}>
+          <Text style={styles.title}>Personal Details</Text>
 
-      {currentStep < 5 && (
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-            <Text style={styles.nextButtonText}>
-              {currentStep === 4 ? 'Confirm Booking' : 'Next'}
-            </Text>
+          <View style={styles.toggleRow}>
+            {["SELF", "OTHER"].map((p) => (
+              <TouchableOpacity
+                key={p}
+                onPress={() => setProfile(p as any)}
+                style={[
+                  styles.toggle,
+                  profile === p && styles.toggleActive,
+                ]}
+              >
+                <Text style={{ color: profile === p ? "#fff" : "#000" }}>
+                  {p === "SELF" ? "For Self" : "For Other"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TextInput
+            editable={profile === "OTHER"}
+            style={[styles.input, profile === "SELF" && styles.disabled]}
+            value={form.name}
+            placeholder="Name"
+          />
+
+          <TouchableOpacity onPress={() => setShowDob(true)}>
+            <TextInput
+              editable={false}
+              style={styles.input}
+              placeholder="Select DOB"
+              value={dob ? dob.toDateString() : ""}
+            />
           </TouchableOpacity>
-        </View>
-      )}
-    </SafeAreaView>
+
+          <TextInput
+            editable={false}
+            style={[styles.input, styles.disabled]}
+            value={form.age}
+            placeholder="Age"
+          />
+
+          {showDob && (
+            <DateTimePicker
+              value={dob || new Date()}
+              mode="date"
+              onChange={(e, d) => {
+                setShowDob(false);
+                if (!d) return;
+                setDob(d);
+                setForm({ ...form, age: calculateAge(d).toString() });
+              }}
+            />
+          )}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Detailed Address"
+            value={form.address}
+            onChangeText={(v) => setForm({ ...form, address: v })}
+          />
+
+          <MapView
+            style={styles.map}
+            region={
+              location && {
+                latitude: location.latitude,
+                longitude: location.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }
+            }
+            onPress={(e) => {
+              if (manualLocation) setLocation(e.nativeEvent.coordinate);
+            }}
+          >
+            {location && (
+              <Marker
+                draggable={manualLocation}
+                coordinate={location}
+                onDragEnd={(e) =>
+                  setLocation(e.nativeEvent.coordinate)
+                }
+              />
+            )}
+          </MapView>
+
+          <View style={styles.buttonRow}>
+            <OutlineButton
+              label="Use Current Location"
+              onPress={getCurrentLocation}
+            />
+            <OutlineButton
+              label="Set Manually"
+              onPress={() => setManualLocation(true)}
+            />
+          </View>
+
+          <PrimaryButton
+            label="Next"
+            disabled={!location || !form.address}
+            onPress={next}
+          />
+        </ScrollView>
+
+        {/* ================= STEP 2 ================= */}
+        <ScrollView key="2" contentContainerStyle={styles.page}>
+          <Text style={styles.title}>Availability</Text>
+
+          {[
+            ["TODAY", "Today", () => selectQuickDate(0)],
+            ["TOMORROW", "Tomorrow", () => selectQuickDate(1)],
+            ["DAY_AFTER", "Day after Tomorrow", () => selectQuickDate(2)],
+          ].map(([k, label, fn]: any) => (
+            <TouchableOpacity
+              key={k}
+              style={styles.radioRow}
+              onPress={fn}
+            >
+              <RadioButton
+                value={k}
+                status={availability === k ? "checked" : "unchecked"}
+              />
+              <Text>{label}</Text>
+            </TouchableOpacity>
+          ))}
+
+          <TouchableOpacity
+            style={styles.calendarBox}
+            onPress={() => {
+              setAvailability("CALENDAR");
+              setShowCalendar(true);
+            }}
+          >
+            <Text>{date ? date.toDateString() : "Select Date"}</Text>
+          </TouchableOpacity>
+
+          {showCalendar && (
+            <DateTimePicker
+              value={date || new Date()}
+              mode="date"
+              onChange={(e, d) => {
+                setShowCalendar(false);
+                if (d) setDate(d);
+              }}
+            />
+          )}
+
+          {date && (
+            <>
+              <Text style={styles.subTitle}>Available Time Slots</Text>
+              <View style={styles.grid}>
+                {TIME_SLOTS.map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => setTimeSlot(t)}
+                    style={[
+                      styles.slot,
+                      timeSlot === t && styles.slotActive,
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color:
+                          timeSlot === t ? "#fff" : COLORS.blue,
+                      }}
+                    >
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+
+          <View style={styles.checkboxRow}>
+            <Checkbox
+              status={hasPrescription ? "checked" : "unchecked"}
+              onPress={() => setHasPrescription(!hasPrescription)}
+            />
+            <Text>I have a prescription</Text>
+          </View>
+
+          <View style={styles.checkboxRow}>
+            <Checkbox
+              status={prc ? "checked" : "unchecked"}
+              onPress={() => setPrc(!prc)}
+            />
+            <Text>Post Report Consultation (PRC)</Text>
+          </View>
+
+          {prc &&
+            DOCTORS.map((d) => (
+              <TouchableOpacity
+                key={d}
+                onPress={() => setSelectedDoctor(d)}
+                style={[
+                  styles.doctor,
+                  selectedDoctor === d && styles.doctorActive,
+                ]}
+              >
+                <View style={styles.leftBar} />
+                <Text>{d}</Text>
+              </TouchableOpacity>
+            ))}
+
+          <Footer>
+            <OutlineButton label="Previous" onPress={back} />
+            <PrimaryButton
+              label="Next"
+              disabled={!timeSlot}
+              onPress={next}
+            />
+          </Footer>
+        </ScrollView>
+
+        {/* ================= STEP 3 ================= */}
+        <ScrollView key="3" contentContainerStyle={styles.page}>
+          <Text style={styles.title}>Payment</Text>
+
+          <View style={styles.card}>
+            <Text style={styles.testName}>COMPLETE BLOOD COUNT</Text>
+            <Text style={styles.discount}>10% OFF - New Year Discount</Text>
+          </View>
+
+          <PriceRow label="Subtotal" value="Rs. 500" />
+          <PriceRow label="Discount" value="- Rs. 50" green />
+          <PriceRow label="Total" value="Rs. 450" bold />
+
+          <Footer>
+            <OutlineButton label="Previous" onPress={back} />
+            <PrimaryButton
+              label="Confirm Booking"
+              onPress={() => {
+                Toast.show({
+                  type: "success",
+                  text1: "Booking Confirmed",
+                });
+                router.replace("/(tabs)");
+              }}
+            />
+          </Footer>
+        </ScrollView>
+      </PagerView>
+
+      <Toast />
+    </View>
   );
 }
 
+/* ================= REUSABLE ================= */
+
+const PrimaryButton = ({ label, onPress, disabled }: any) => (
+  <TouchableOpacity
+    onPress={onPress}
+    disabled={disabled}
+    style={[
+      styles.primary,
+      { opacity: disabled ? 0.4 : 1 },
+    ]}
+  >
+    <Text style={{ color: "#fff", fontSize: 16 }}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const OutlineButton = ({ label, onPress }: any) => (
+  <TouchableOpacity onPress={onPress} style={styles.outline}>
+    <Text style={{ color: COLORS.teal }}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const Footer = ({ children }: any) => (
+  <View style={styles.footer}>{children}</View>
+);
+
+const PriceRow = ({ label, value, green, bold }: any) => (
+  <View style={styles.priceRow}>
+    <Text style={{ fontSize: 16 }}>{label}</Text>
+    <Text
+      style={{
+        fontSize: 16,
+        fontWeight: bold ? "700" : "400",
+        color: green ? "green" : "#000",
+      }}
+    >
+      {value}
+    </Text>
+  </View>
+);
+
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
+  page: { padding: 16, paddingLeft: 60 },
+
+  title: { fontSize: 20, fontWeight: "700", marginBottom: 16 },
+  subTitle: { marginVertical: 12, fontSize: 16 },
+
+  stepper: { position: "absolute", left: 24, top: 40 },
+  stepLine: {
+    position: "absolute",
+    width: 3,
+    height: 240,
+    backgroundColor: "#E5E7EB",
+    left: 8,
   },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  stepIndicator: {
-    alignItems: 'center',
-    flex: 1,
+  stepFill: {
+    width: 3,
+    backgroundColor: COLORS.blue,
   },
   stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: COLORS.blue,
+    backgroundColor: "#fff",
+    marginBottom: 68,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  activeStep: {
-    backgroundColor: '#2563EB',
+  stepCircleActive: {
+    backgroundColor: COLORS.blue,
   },
-  stepLabel: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    textAlign: 'center',
+  stepText: { color: "#fff", fontSize: 12 },
+
+  toggleRow: { flexDirection: "row", marginBottom: 16 },
+  toggle: {
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    marginRight: 10,
   },
-  activeStepLabel: {
-    color: '#2563EB',
-    fontWeight: '600',
+  toggleActive: {
+    backgroundColor: COLORS.teal,
+    borderColor: COLORS.teal,
   },
-  content: {
-    flex: 1,
-    padding: 20,
+
+  input: {
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
   },
-  stepContent: {
-    flex: 1,
+  disabled: { opacity: 0.6 },
+
+  map: { height: 160, borderRadius: 12, marginVertical: 12 },
+
+  buttonRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
   },
-  stepTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
+
+  radioRow: { flexDirection: "row", alignItems: "center" },
+
+  calendarBox: {
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 10,
+    marginVertical: 12,
   },
-  stepSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 24,
+
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  slot: {
+    borderWidth: 1,
+    borderColor: COLORS.blue,
+    padding: 10,
+    borderRadius: 8,
+    width: width / 2 - 60,
+    alignItems: "center",
   },
-  optionCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+  slotActive: { backgroundColor: COLORS.blue },
+
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 14,
+  },
+
+  doctor: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    marginVertical: 6,
+  },
+  doctorActive: {
+    borderWidth: 2,
+    borderColor: COLORS.teal,
+  },
+  leftBar: {
+    width: 4,
+    height: "100%",
+    backgroundColor: COLORS.gold,
+    marginRight: 8,
+  },
+
+  card: {
+    backgroundColor: "#fff",
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  selectedOption: {
-    borderColor: '#2563EB',
-    backgroundColor: '#EFF6FF',
+  testName: { fontSize: 17, fontWeight: "600" },
+  discount: { color: "green", marginTop: 6 },
+
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 8,
   },
-  optionText: {
-    fontSize: 16,
-    color: '#1F2937',
-    fontWeight: '600',
-  },
-  labInfo: {
-    flex: 1,
-  },
-  labName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  labCity: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  labContact: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  paymentInfo: {
-    flex: 1,
-  },
-  paymentName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  paymentSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  confirmationIcon: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  confirmationTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  confirmationText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  bookingSummary: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  summaryItem: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
-  },
+
   footer: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
   },
-  nextButton: {
-    backgroundColor: '#2563EB',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
+
+  primary: {
+    backgroundColor: COLORS.blue,
+    padding: 14,
+    borderRadius: 14,
+    flex: 1,
+    alignItems: "center",
+    marginLeft: 10,
   },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  outline: {
+    borderWidth: 1,
+    borderColor: COLORS.blue,
+    padding: 14,
+    borderRadius: 14,
+    flex: 1,
+    alignItems: "center",
+    marginRight: 10,
   },
 });

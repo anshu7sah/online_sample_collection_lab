@@ -40,7 +40,7 @@ export default function CartScreen() {
       Alert.alert('Empty Cart', 'Please add items to cart before proceeding.');
       return;
     }
-    router.push('/tests/booking');
+    router.push('/booking/step1');
   };
 
   // ---------------- EMPTY CART ----------------

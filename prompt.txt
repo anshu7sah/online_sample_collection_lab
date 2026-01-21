@@ -1,0 +1,66 @@
+Project Name: Lab Test Collection App (React Native, Expo)
+
+1. Folder Structure:
+- App uses **Expo Router** with `(tabs)` structure.
+- Booking screen located at: `app/(tabs)/tests/booking.tsx`.
+- Cart screen, main menu, and other tabs follow `(tabs)` convention.
+
+2. Design System / UI:
+- **Primary Color (Teal):** #008080
+- **Accent Color (Golden-Yellow):** #FFB800
+- **Secondary/Light Grey:** #F5F5F5
+- **Dark Grey:** #6B7280
+- Typography: 'Inter' or 'Quicksand', rounded sans-serif.
+- Cards: White, rounded corners (15), subtle shadow, vertical left bar (Teal/Gold) like "Quick Links" style.
+- Buttons: Large, rounded, primary teal. Disabled state opacity 0.4.
+- Step Flow Indicator: Vertical line with circles, filled as steps progress (1-2-3).
+
+3. Booking Flow (3 Steps):
+Step 1: Personal Details & Location
+- Fields: Name, Age, Gender (Male/Female/Others), Detailed Address.
+- Profile Selector: "For Myself" pre-fills name/age (editable=false, grey background), "For Others" editable.
+- Map: Small MapView, Marker, "Use Current Location" button.
+- Validation: Name, Age, Address, Location required to enable Next button.
+
+Step 2: Scheduling & Health Info
+- Branch selection: Default Sukra Polyclinic main branch (no UI field needed).
+- Time slot selection: Grid buttons with teal border, selected slot = teal background.
+- Date selection: Today / Tomorrow / Day after Tomorrow (optional date picker).
+- Prescription/Referral: Checkbox (teal), opens "Upload" button with file icon if checked.
+- PRC Selection: List of doctors with teal/gold left-accent bars.
+
+Step 3: Review & Validation
+- Order Summary: Shows Name, Age, Gender, Address, Time slot.
+- Discount: Gold text for New Year discount.
+- Confirm Booking button: Disabled (opacity 0.4) until patient info, time slot, and location are valid. Becomes teal when active.
+
+4. Dependencies / Libraries:
+- react, react-native, expo
+- expo-router
+- formik + yup
+- react-native-maps
+- expo-location
+- react-native-paper (Checkbox)
+- lucide-react-native (Icons)
+- react-native-toast-message
+- react-native-gesture-handler
+- react-native-safe-area-context
+- react-native-reanimated
+- react-native-pager-view
+
+5. Notes / UI Screenshots
+- Step indicator vertical on left side.
+- Inputs and map cards aligned with margin left to match vertical step line.
+- Time slots grid, prescription upload button styled.
+- Colors and typography consistent across all screens.
+- All steps scrollable if content overflows.
+
+6. Behaviors / Validations
+- Next buttons are disabled until required fields are filled.
+- Location must be fetched to proceed from Step 1.
+- Time slot selection required to proceed from Step 2.
+- Confirm Booking triggers Toast and navigates back to Home.
+
+7. Platform / Tech
+- React Native 0.79.1, Expo 53, using Hermes engine.
+- Android-first styling tested.
