@@ -13,7 +13,7 @@ export default function PrimaryButton({
   onPress,
   disabled,
   style,
-  textStyle,
+  textStyle, 
 }: Props) {
   return (
     <TouchableOpacity

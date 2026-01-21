@@ -28,14 +28,13 @@ export default function Step2() {
     }
   };
 
-  // Quick date buttons: Today / Tomorrow / Day after Tomorrow
   const setQuickDate = (days: number) => {
     const date = new Date();
     date.setDate(date.getDate() + days);
-    dispatch({ date: date.toISOString().split("T")[0] }); // store ISO string
+    dispatch({ date: date.toISOString().split("T")[0] });
   };
 
-  const handleCustomDate = (event: any, selectedDate?: Date) => {
+  const handleCustomDate = (_: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
       dispatch({ date: selectedDate.toISOString().split("T")[0] });
@@ -54,10 +53,9 @@ export default function Step2() {
       {/* Quick Date Selectors */}
       <View style={styles.quickDateRow}>
         {["Today", "Tomorrow", "Day after Tomorrow"].map((label, idx) => {
-          const days = idx; // 0,1,2
-          const buttonDate = new Date();
-          buttonDate.setDate(buttonDate.getDate() + days);
-          const iso = buttonDate.toISOString().split("T")[0];
+          const date = new Date();
+          date.setDate(date.getDate() + idx);
+          const iso = date.toISOString().split("T")[0];
 
           return (
             <TouchableOpacity
@@ -66,8 +64,7 @@ export default function Step2() {
                 styles.quickDateBtn,
                 state.date === iso && styles.quickDateBtnActive,
               ]}
-              onPress={() => setQuickDate(days)}
-              activeOpacity={0.8}
+              onPress={() => setQuickDate(idx)}
             >
               <Text
                 style={[
@@ -87,7 +84,7 @@ export default function Step2() {
         style={styles.datePickerBtn}
         onPress={() => setShowDatePicker(true)}
       >
-        <Text>{state.date ? state.date : "Select Date"}</Text>
+        <Text>{state.date || "Select Date"}</Text>
       </TouchableOpacity>
 
       {showDatePicker && (
@@ -98,30 +95,19 @@ export default function Step2() {
         />
       )}
 
-      {/* Time Slots - only visible if date selected */}
+      {/* Time Slots */}
       {state.date && (
         <View style={styles.timeSlotGrid}>
           {TIME_SLOTS.map((slot) => {
-            const isDisabled = false; // replace with backend check later
             const isSelected = state.timeSlot === slot;
 
             return (
               <TouchableOpacity
                 key={slot}
-                style={[
-                  styles.slot,
-                  isSelected && styles.slotActive,
-                  isDisabled && styles.slotDisabled,
-                ]}
-                onPress={() => !isDisabled && dispatch({ timeSlot: slot })}
-                disabled={isDisabled}
+                style={[styles.slot, isSelected && styles.slotActive]}
+                onPress={() => dispatch({ timeSlot: slot })}
               >
-                <Text
-                  style={[
-                    { color: isSelected ? "#fff" : "#008080" },
-                    isDisabled && { color: "#ccc" },
-                  ]}
-                >
+                <Text style={{ color: isSelected ? "#fff" : "#008080" }}>
                   {slot}
                 </Text>
               </TouchableOpacity>
@@ -134,13 +120,32 @@ export default function Step2() {
       <Checkbox.Item
         label="I have a prescription"
         status={state.hasPrescription ? "checked" : "unchecked"}
-        onPress={() =>
-          dispatch({ hasPrescription: !state.hasPrescription })
-        }
+        onPress={() => dispatch({ hasPrescription: !state.hasPrescription })}
       />
 
+      {/* ✅ Prescription Upload UI (ONLY ADDITION) */}
       {state.hasPrescription && (
-        <PrimaryButton label="Upload Prescription" onPress={pickPrescription} />
+        <View style={styles.prescriptionBox}>
+          {!state.prescriptionFile ? (
+            <PrimaryButton label="Upload Prescription" onPress={pickPrescription} />
+          ) : (
+            <View style={styles.uploadedFileRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fileLabel}>Uploaded Prescription</Text>
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {state.prescriptionFile.name}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.removeBtn}
+                onPress={() => dispatch({ prescriptionFile: null })}
+              >
+                <Text style={styles.removeText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       )}
 
       {/* Post Report Consultation */}
@@ -152,7 +157,7 @@ export default function Step2() {
         }
       />
 
-      {state.prcDoctor !== undefined && !!state.prcDoctor && (
+      {state.prcDoctor && (
         <View style={styles.doctorList}>
           {DOCTORS.map((d) => (
             <TouchableOpacity
@@ -163,11 +168,7 @@ export default function Step2() {
               ]}
               onPress={() => dispatch({ prcDoctor: d })}
             >
-              <Text
-                style={
-                  state.prcDoctor === d ? { color: "#fff" } : { color: "#008080" }
-                }
-              >
+              <Text style={{ color: state.prcDoctor === d ? "#fff" : "#008080" }}>
                 {d}
               </Text>
             </TouchableOpacity>
@@ -175,12 +176,9 @@ export default function Step2() {
         </View>
       )}
 
-      {/* Buttons Column: Previous + Next */}
+      {/* Buttons */}
       <View style={styles.buttonColumn}>
-        <TouchableOpacity
-          style={styles.prevBtn}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.prevBtn} onPress={() => router.back()}>
           <Text style={styles.prevBtnText}>Previous</Text>
         </TouchableOpacity>
 
@@ -198,35 +196,20 @@ export default function Step2() {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
 
-  quickDateRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-
+  quickDateRow: { flexDirection: "row", marginBottom: 12 },
   quickDateBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: "#F5F5F5",
     alignItems: "center",
-    justifyContent: "center",
     marginHorizontal: 4,
   },
-  quickDateBtnActive: {
-    backgroundColor: "#008080",
-  },
-  quickDateText: {
-    color: "#374151",
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  quickDateTextActive: {
-    color: "#fff",
-  },
+  quickDateBtnActive: { backgroundColor: "#008080" },
+  quickDateText: { fontWeight: "600", color: "#374151" },
+  quickDateTextActive: { color: "#fff" },
 
   datePickerBtn: {
     backgroundColor: "#fff",
@@ -235,12 +218,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  timeSlotGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 12,
-  },
+  timeSlotGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   slot: {
     borderWidth: 1,
     borderColor: "#008080",
@@ -248,16 +226,29 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: "48%",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
   },
-  slotActive: {
-    backgroundColor: "#008080",
+  slotActive: { backgroundColor: "#008080" },
+
+  prescriptionBox: { marginBottom: 12 },
+  uploadedFileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  slotDisabled: {
-    backgroundColor: "#F0F0F0",
-    borderColor: "#ccc",
+  fileLabel: { fontSize: 12, color: "#6B7280" },
+  fileName: { fontSize: 14, fontWeight: "600", color: "#111827" },
+  removeBtn: {
+    backgroundColor: "#FEE2E2",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 12,
   },
+  removeText: { color: "#DC2626", fontWeight: "600" },
 
   doctorList: { marginVertical: 12 },
   doctorCard: {
@@ -266,37 +257,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 8,
   },
-  doctorCardActive: {
-    backgroundColor: "#008080",
-  },
+  doctorCardActive: { backgroundColor: "#008080" },
 
-  buttonColumn: {
-    flexDirection: "column",
-    gap: 12,
-    marginTop: 24,
-  },
+  buttonColumn: { marginTop: 24, gap: 12 },
   prevBtn: {
-    backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#008080",
     padding: 16,
     borderRadius: 16,
     alignItems: "center",
   },
-  prevBtnText: {
-    color: "#008080",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  prevBtnText: { color: "#008080", fontWeight: "600" },
   nextBtn: {
     backgroundColor: "#008080",
     padding: 16,
     borderRadius: 16,
     alignItems: "center",
   },
-  nextBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  nextBtnText: { color: "#fff", fontWeight: "600" },
 });

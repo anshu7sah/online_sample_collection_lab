@@ -5,18 +5,20 @@ import PrimaryButton from "@/components/PrimaryButton";
 import Toast from "react-native-toast-message";
 import { useApp } from "@/contexts/AppContext";
 import { useState } from "react";
+import { useCreateBooking } from "@/hooks/useCreateBooking";
 
-const PAYMENT_MODES = ["Pay Later", "ESEWA", "KHALTI", "BANK_TRANSFER"];
+const PAYMENT_MODES = ["PAY_LATER", "ESEWA", "KHALTI", "BANK_TRANSFER"];
 
 export default function Step3() {
   const { state: bookingState } = useBooking();
   const { state: appState, dispatch } = useApp();
   const router = useRouter();
+  const {mutate: createBooking,isPending} = useCreateBooking();
 
   const cart = appState.cart || [];
   const totalAmount = cart.reduce((sum, item) => sum + Number(item.price), 0);
 
-  const [selectedPayment, setSelectedPayment] = useState("Pay Later");
+  const [selectedPayment, setSelectedPayment] = useState("PAY_LATER");
 
 const confirmBooking = async () => {
   try {
@@ -56,28 +58,38 @@ const confirmBooking = async () => {
     });
 
     // POST request to backend
-    const response = await fetch("https://your-backend.com/bookings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "multipart/form-data",
-        Authorization: `Bearer ${appState.token}`, // if protected route
-      },
-      body: formData,
-    });
+    // const response = await fetch("https://your-backend.com/bookings", {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "multipart/form-data",
+    //     Authorization: `Bearer ${appState.token}`, // if protected route
+    //   },
+    //   body: formData,
+    // });
 
-    const data = await response.json();
+    // const data = await response.json();
 
-    if (!response.ok) {
-      Toast.show({ type: "error", text1: data.message || "Booking failed" });
-      return;
-    }
+    // if (!response.ok) {
+    //   Toast.show({ type: "error", text1: data.message || "Booking failed" });
+    //   return;
+    // }
 
-    Toast.show({ type: "success", text1: "Booking Confirmed" });
+    // Toast.show({ type: "success", text1: "Booking Confirmed" });
 
-    // Clear cart and reset BookingContext
-    dispatch({ type: "CLEAR_CART" });
+    // // Clear cart and reset BookingContext
+    // dispatch({ type: "CLEAR_CART" });
 
-    router.replace("/(tabs)");
+    // router.replace("/(tabs)");
+    createBooking(formData, {
+    onSuccess: () => {
+      Toast.show({ type: "success", text1: "Booking Confirmed" });
+      dispatch({ type: "CLEAR_CART" });
+      router.replace("/(tabs)");
+    },
+    onError: (error: any) => {
+      Toast.show({ type: "error", text1: error?.response?.data?.message || "Booking failed" });
+    },
+  });
   } catch (error) {
     console.error("Booking submission error:", error);
     Toast.show({ type: "error", text1: "Booking submission failed" });
@@ -196,10 +208,11 @@ const confirmBooking = async () => {
           textStyle={{ color: "#008080" }}
         />
         <PrimaryButton
-          label="Confirm Booking"
-          onPress={confirmBooking}
-          disabled={isDisabled}
-        />
+  label={isPending ? "Submitting..." : "Confirm Booking"}
+  onPress={confirmBooking}
+  disabled={isDisabled || isPending}
+/>
+
       </View>
     </ScrollView>
   );

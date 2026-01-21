@@ -1,256 +1,357 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FileText, Download, Calendar, Clock } from 'lucide-react-native';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { FileText, Download, Calendar, Clock } from "lucide-react-native";
+import * as Linking from "expo-linking";
+import { useMyBookings } from "@/hooks/useMyBookings";
 
 export default function ReportsScreen() {
-  const [activeTab, setActiveTab] = useState('completed');
+  const [activeTab, setActiveTab] = useState<"completed" | "upcoming">("completed");
 
-  const completedReports = [
-    {
-      id: 1,
-      testName: 'Full Body Checkup',
-      date: '2024-01-15',
-      status: 'Ready',
-      reportUrl: '#',
-    },
-    {
-      id: 2,
-      testName: 'Diabetes Panel',
-      date: '2024-01-10',
-      status: 'Ready',
-      reportUrl: '#',
-    },
-    {
-      id: 3,
-      testName: 'Liver Function Test',
-      date: '2024-01-05',
-      status: 'Ready',
-      reportUrl: '#',
-    },
-  ];
+  const {
+    data,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useMyBookings({
+    page: 1,
+    limit: 50,
+  });
 
-  const upcomingTests = [
-    {
-      id: 4,
-      testName: 'Heart Health Package',
-      date: '2024-01-25',
-      time: '10:00 AM',
-      status: 'Scheduled',
-    },
-    {
-      id: 5,
-      testName: 'Blood Sugar Test',
-      date: '2024-01-28',
-      time: '9:30 AM',
-      status: 'Scheduled',
-    },
-  ];
+  const bookings = data?.data ?? [];
+
+  const completed = bookings.filter(
+    (b: any) => b.status === "COMPLETED"
+  );
+
+  const upcoming = bookings.filter(
+    (b: any) => b.status === "SCHEDULED" || b.status === "SAMPLE_COLLECTED"
+  );
+
+  const renderEmpty = (text: string) => (
+    <View style={styles.emptyBox}>
+      <Text style={styles.emptyText}>{text}</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Reports</Text>
       </View>
 
+      {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
-          onPress={() => setActiveTab('completed')}
+          style={[styles.tab, activeTab === "completed" && styles.activeTab]}
+          onPress={() => setActiveTab("completed")}
         >
-          <Text style={[styles.tabText, activeTab === 'completed' && styles.activeTabText]}>
-            Completed Tests
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "completed" && styles.activeTabText,
+            ]}
+          >
+            Completed Reports
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
-          onPress={() => setActiveTab('upcoming')}
+          style={[styles.tab, activeTab === "upcoming" && styles.activeTab]}
+          onPress={() => setActiveTab("upcoming")}
         >
-          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "upcoming" && styles.activeTabText,
+            ]}
+          >
             Upcoming Tests
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'completed' ? (
-          completedReports.map((report) => (
-            <View key={report.id} style={styles.reportCard}>
-              <View style={styles.reportHeader}>
-                <View style={styles.reportIcon}>
-                  <FileText size={24} color="#2563EB" />
-                </View>
-                <View style={styles.reportInfo}>
-                  <Text style={styles.reportName}>{report.testName}</Text>
-                  <View style={styles.reportMeta}>
-                    <Calendar size={14} color="#6B7280" />
-                    <Text style={styles.reportDate}>{report.date}</Text>
+      {/* Loader */}
+      {isLoading && (
+        <ActivityIndicator
+          size="large"
+          color="#008080"
+          style={{ marginTop: 40 }}
+        />
+      )}
+
+      {/* Content */}
+      {!isLoading && (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={isFetching}
+              onRefresh={refetch}
+              colors={["#008080"]}
+              tintColor="#008080"
+            />
+          }
+        >
+          {/* Completed Reports */}
+          {activeTab === "completed" &&
+            (completed.length === 0
+              ? renderEmpty("No reports available yet")
+              : completed.map((booking: any) => (
+                  <View key={booking.id} style={styles.card}>
+                    <View style={styles.cardHeader}>
+                      <View style={styles.iconCircle}>
+                        <FileText size={22} color="#008080" />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.title}>
+                          {booking.items.map((i: any) => i.name).join(", ")}
+                        </Text>
+
+                        <View style={styles.meta}>
+                          <Calendar size={14} color="#6B7280" />
+                          <Text style={styles.metaText}>
+                            {new Date(booking.date).toDateString()}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.statusBadge}>
+                        <Text style={styles.statusText}>Ready</Text>
+                      </View>
+                    </View>
+
+                    {booking.reportUrl && (
+                      <TouchableOpacity
+                        style={styles.downloadBtn}
+                        onPress={() =>
+                          Linking.openURL(booking.reportUrl)
+                        }
+                      >
+                        <Download size={16} color="#008080" />
+                        <Text style={styles.downloadText}>
+                          Download Report
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                </View>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusText}>{report.status}</Text>
-                </View>
-              </View>
-              <TouchableOpacity style={styles.downloadButton}>
-                <Download size={16} color="#2563EB" />
-                <Text style={styles.downloadText}>Download Report</Text>
-              </TouchableOpacity>
-            </View>
-          ))
-        ) : (
-          upcomingTests.map((test) => (
-            <View key={test.id} style={styles.reportCard}>
-              <View style={styles.reportHeader}>
-                <View style={styles.reportIcon}>
-                  <Clock size={24} color="#F59E0B" />
-                </View>
-                <View style={styles.reportInfo}>
-                  <Text style={styles.reportName}>{test.testName}</Text>
-                  <View style={styles.reportMeta}>
-                    <Calendar size={14} color="#6B7280" />
-                    <Text style={styles.reportDate}>{test.date} at {test.time}</Text>
+                )))}
+
+          {/* Upcoming Tests */}
+          {activeTab === "upcoming" &&
+            (upcoming.length === 0
+              ? renderEmpty("No upcoming tests")
+              : upcoming.map((booking: any) => (
+                  <View key={booking.id} style={styles.card}>
+                    <View style={styles.cardHeader}>
+                      <View style={[styles.iconCircle, styles.upcomingIcon]}>
+                        <Clock size={22} color="#B45309" />
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.title}>
+                          {booking.items.map((i: any) => i.name).join(", ")}
+                        </Text>
+
+                        <View style={styles.meta}>
+                          <Calendar size={14} color="#6B7280" />
+                          <Text style={styles.metaText}>
+                            {new Date(booking.date).toDateString()} • {booking.timeSlot}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.upcomingBadge}>
+                        <Text style={styles.upcomingText}>
+                          {booking.status === "SAMPLE_COLLECTED"
+                            ? "Sample Collected"
+                            : "Scheduled"}
+                        </Text>
+                      </View>
+                    </View>
                   </View>
-                </View>
-                <View style={[styles.statusBadge, styles.upcomingBadge]}>
-                  <Text style={[styles.statusText, styles.upcomingText]}>{test.status}</Text>
-                </View>
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+                )))}
+        </ScrollView>
+      )}
+
+      {isFetching && !isLoading && (
+        <Text style={styles.fetchingText}>Refreshing…</Text>
+      )}
     </SafeAreaView>
   );
 }
 
+/* ===================== STYLES ===================== */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
   },
+
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    padding: 20,
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
+
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#0F172A",
   },
+
   tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 12,
+    flexDirection: "row",
+    backgroundColor: "#E6F2F2",
+    margin: 16,
     padding: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 14,
   },
+
   tab: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: 10,
+    alignItems: "center",
   },
+
   activeTab: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#008080",
   },
+
   tabText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontWeight: "600",
+    color: "#475569",
   },
+
   activeTabText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
+
   content: {
-    flex: 1,
-    padding: 20,
-  },
-  reportCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingBottom: 40,
   },
-  reportHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: "#000000",
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-  reportIcon: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  iconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#E6F2F2",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
-  reportInfo: {
-    flex: 1,
+
+  upcomingIcon: {
+    backgroundColor: "#FEF3C7",
   },
-  reportName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+
+  title: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0F172A",
     marginBottom: 4,
   },
-  reportMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  meta: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  reportDate: {
+
+  metaText: {
     fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 4,
+    color: "#6B7280",
+    marginLeft: 6,
   },
+
   statusBadge: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  upcomingBadge: {
-    backgroundColor: '#FEF3C7',
-  },
+
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#16A34A',
+    fontWeight: "600",
+    color: "#15803D",
   },
+
+  upcomingBadge: {
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+
   upcomingText: {
-    color: '#D97706',
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#B45309",
   },
-  downloadButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+
+  downloadBtn: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E6F2F2",
+    paddingVertical: 10,
+    borderRadius: 10,
   },
+
   downloadText: {
+    marginLeft: 6,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#2563EB',
-    marginLeft: 4,
+    fontWeight: "600",
+    color: "#008080",
+  },
+
+  emptyBox: {
+    marginTop: 60,
+    alignItems: "center",
+  },
+
+  emptyText: {
+    color: "#6B7280",
+    fontSize: 14,
+  },
+
+  fetchingText: {
+    textAlign: "center",
+    fontSize: 12,
+    color: "#6B7280",
+    paddingBottom: 8,
   },
 });
