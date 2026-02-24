@@ -13,7 +13,7 @@ export default function Step3() {
   const { state: bookingState } = useBooking();
   const { state: appState, dispatch } = useApp();
   const router = useRouter();
-  const {mutate: createBooking,isPending} = useCreateBooking();
+  const {mutate: createBooking, isPending} = useCreateBooking();
 
   const cart = appState.cart || [];
   const totalAmount = cart.reduce((sum, item) => sum + Number(item.price), 0);
@@ -22,7 +22,10 @@ export default function Step3() {
 
 const confirmBooking = async () => {
   try {
-    console.log("Final Booking Payload:", { bookingState, cart, paymentMode: selectedPayment });
+    if (!bookingState.name || !bookingState.date || !bookingState.timeSlot || !bookingState.address) {
+      Toast.show({ type: "error", text1: "Please fill all required fields" });
+      return;
+    }
 
     const formData = new FormData();
 
@@ -46,7 +49,7 @@ const confirmBooking = async () => {
     formData.append("date", bookingState.date);
     formData.append("timeSlot", bookingState.timeSlot);
     formData.append("prcDoctor", bookingState.prcDoctor || "");
-    formData.append("paymentMode", selectedPayment); // from Step3 UI
+    formData.append("paymentMode", selectedPayment);
 
     // Append cart items
     cart.forEach((item, index) => {
@@ -57,42 +60,22 @@ const confirmBooking = async () => {
       if (item.type === "package") formData.append(`items[${index}][packageId]`, item.id.toString());
     });
 
-    // POST request to backend
-    // const response = await fetch("https://your-backend.com/bookings", {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //     Authorization: `Bearer ${appState.token}`, // if protected route
-    //   },
-    //   body: formData,
-    // });
-
-    // const data = await response.json();
-
-    // if (!response.ok) {
-    //   Toast.show({ type: "error", text1: data.message || "Booking failed" });
-    //   return;
-    // }
-
-    // Toast.show({ type: "success", text1: "Booking Confirmed" });
-
-    // // Clear cart and reset BookingContext
-    // dispatch({ type: "CLEAR_CART" });
-
-    // router.replace("/(tabs)");
+    // Trigger mutation
     createBooking(formData, {
-    onSuccess: () => {
-      Toast.show({ type: "success", text1: "Booking Confirmed" });
-      dispatch({ type: "CLEAR_CART" });
-      router.replace("/(tabs)");
-    },
-    onError: (error: any) => {
-      Toast.show({ type: "error", text1: error?.response?.data?.message || "Booking failed" });
-    },
-  });
+      onSuccess: () => {
+        Toast.show({ type: "success", text1: "Booking Confirmed" });
+        dispatch({ type: "CLEAR_CART" });
+        router.replace("/(tabs)");
+      },
+      onError: (error: any) => {
+        const errorMsg = error?.response?.data?.message || error?.message || "Booking failed";
+        console.error("[Step3] Booking error:", errorMsg);
+        Toast.show({ type: "error", text1: errorMsg });
+      },
+    });
   } catch (error) {
-    console.error("Booking submission error:", error);
-    Toast.show({ type: "error", text1: "Booking submission failed" });
+    console.error("[Step3] Submission error:", error);
+    Toast.show({ type: "error", text1: "Booking submission failed. Please try again." });
   }
 };
 

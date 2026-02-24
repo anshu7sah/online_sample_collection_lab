@@ -46,6 +46,12 @@ export default function BookingScreen() {
   const router = useRouter();
   const pagerRef = useRef<PagerView>(null);
 
+  // Redirect to step1 (this file should not be used)
+  React.useEffect(() => {
+    console.warn('[BookingScreen] Old index.tsx detected - redirecting to step1');
+    router.replace('/booking/step1');
+  }, [router]);
+
   const [step, setStep] = useState(0);
 
   /* ================= FORM STATE ================= */
@@ -138,7 +144,6 @@ export default function BookingScreen() {
       doctor,
     };
 
-    console.log("FINAL BOOKING PAYLOAD", payload);
 
     Toast.show({ type: "success", text1: "Booking Confirmed" });
     router.replace("/(tabs)");
