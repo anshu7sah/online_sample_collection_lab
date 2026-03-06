@@ -73,8 +73,14 @@ export default function Signup() {
       });
       return res.data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['current-user'] });
+    onSuccess: (data) => {
+      // Immediately update user data in cache to reflect that profile is complete
+      // and prevent TabLayout redirecting back here
+      if (data?.user) {
+        queryClient.setQueryData(['current-user'], data.user);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['current-user'] });
+      }
       Toast.show({ type: 'success', text1: 'Profile created successfully' });
       router.replace('/(tabs)');
     },
