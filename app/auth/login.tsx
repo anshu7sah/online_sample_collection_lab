@@ -48,7 +48,6 @@ export default function Login() {
     onSuccess: async (data) => {
       await AsyncStorage.setItem('token', data.token);
       Keyboard.dismiss();
-      console.log("data",data);
 
       if (data.isNewUser) {
         router.replace({

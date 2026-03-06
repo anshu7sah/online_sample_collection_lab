@@ -22,9 +22,6 @@ export default function SplashScreen() {
     if (!state.authReady) return;
 
     const timer = setTimeout(() => {
-      console.log("state after auth ready",state);
-      console.log("auth ready",state.authReady);
-      console.log("token",state.token);
       if (state.token) {
         router.replace('/(tabs)');
       } else {

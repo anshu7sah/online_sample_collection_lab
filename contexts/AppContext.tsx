@@ -64,7 +64,6 @@ const initialState: AppState = {
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'RESTORE_AUTH':
-      console.log('Restoring auth with token:', action.payload.token);
       return {
         ...state,
         token: action.payload.token,

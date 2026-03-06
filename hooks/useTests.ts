@@ -25,7 +25,6 @@ export const useTests = ({ page, limit, filters }: Params) => {
           params.append(key, String(value))
         }
       })
-      console.log("params",params.toString())
 
       // Axios GET request
       const res = await api.get(`/tests?${params.toString()}`)
