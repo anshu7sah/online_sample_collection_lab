@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,35 +7,27 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
-} from "react-native";
-import PagerView from "react-native-pager-view";
-import MapView, { Marker } from "react-native-maps";
-import * as Location from "expo-location";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Checkbox, RadioButton } from "react-native-paper";
-import * as DocumentPicker from "expo-document-picker";
-import Toast from "react-native-toast-message";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+} from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Checkbox, RadioButton } from 'react-native-paper';
+import * as DocumentPicker from 'expo-document-picker';
+import Toast from 'react-native-toast-message';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { COLORS } from '@/lib/theme';
 
-const { width } = Dimensions.get("window");
-
-const COLORS = {
-  blue: "#2563EB",
-  teal: "#0D9488",
-  grey: "#F3F4F6",
-  dark: "#374151",
-  white: "#FFFFFF",
-};
+const { width } = Dimensions.get('window');
 
 const TIME_SLOTS = [
-  "12:00 - 13:00",
-  "13:00 - 14:00",
-  "14:00 - 15:00",
-  "15:00 - 16:00",
+  '12:00 - 13:00',
+  '13:00 - 14:00',
+  '14:00 - 15:00',
+  '15:00 - 16:00',
 ];
 
-const DOCTORS = ["Dr. S. Yadav", "Dr. R. Jha", "Dr. A. Mishra"];
+const DOCTORS = ['Dr. S. Yadav', 'Dr. R. Jha', 'Dr. A. Mishra'];
 
 const calculateAge = (dob: Date) =>
   Math.floor((Date.now() - dob.getTime()) / 31557600000);
@@ -44,20 +36,20 @@ const calculateAge = (dob: Date) =>
 
 export default function BookingScreen() {
   const router = useRouter();
-  const pagerRef = useRef<PagerView>(null);
+  const pagerRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState(0);
 
   /* ================= FORM STATE ================= */
 
-  const [profile, setProfile] = useState<"SELF" | "OTHER">("SELF");
+  const [profile, setProfile] = useState<'SELF' | 'OTHER'>('SELF');
   const [dob, setDob] = useState<Date | null>(null);
   const [showDob, setShowDob] = useState(false);
 
   const [form, setForm] = useState({
-    name: "",
-    age: "",
-    mobile: "",
+    name: '',
+    age: '',
+    mobile: '',
   });
 
   const [location, setLocation] = useState<any>(null);
@@ -65,33 +57,29 @@ export default function BookingScreen() {
 
   const [date, setDate] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [timeSlot, setTimeSlot] = useState("");
+  const [timeSlot, setTimeSlot] = useState('');
 
   const [hasPrescription, setHasPrescription] = useState(false);
   const [prescriptionFile, setPrescriptionFile] = useState<any>(null);
 
   const [prc, setPrc] = useState(false);
-  const [doctor, setDoctor] = useState("");
+  const [doctor, setDoctor] = useState('');
 
   /* ================= NAVIGATION ================= */
 
   const goNext = () => {
-    pagerRef.current?.setPage(step + 1);
+    pagerRef.current?.scrollTo({ x: (step + 1) * width, animated: true });
     setStep(step + 1);
   };
 
   const goBack = () => {
-    pagerRef.current?.setPage(step - 1);
+    pagerRef.current?.scrollTo({ x: (step - 1) * width, animated: true });
     setStep(step - 1);
   };
 
   /* ================= VALIDATION ================= */
 
-  const step1Valid =
-    form.name &&
-    form.age &&
-    form.mobile &&
-    location;
+  const step1Valid = form.name && form.age && form.mobile && location;
 
   const step2Valid =
     date &&
@@ -103,7 +91,7 @@ export default function BookingScreen() {
 
   const getCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return;
+    if (status !== 'granted') return;
 
     const loc = await Location.getCurrentPositionAsync({});
     setLocation(loc.coords);
@@ -114,7 +102,7 @@ export default function BookingScreen() {
 
   const pickPrescription = async () => {
     const res = await DocumentPicker.getDocumentAsync({
-      type: ["image/*", "application/pdf"],
+      type: ['image/*', 'application/pdf'],
     });
 
     if (!res.canceled) {
@@ -138,34 +126,50 @@ export default function BookingScreen() {
       doctor,
     };
 
-    console.log("FINAL BOOKING PAYLOAD", payload);
+    console.log('FINAL BOOKING PAYLOAD', payload);
 
-    Toast.show({ type: "success", text1: "Booking Confirmed" });
-    router.replace("/(tabs)");
+    Toast.show({ type: 'success', text1: 'Booking Confirmed' });
+    router.replace('/(tabs)');
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.grey }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.grey100 }}>
       {/* ================= STEPPER ================= */}
       <View style={styles.stepHeader}>
-        {["Details", "Schedule", "Confirm"].map((label, i) => (
+        {['Details', 'Schedule', 'Confirm'].map((label, i) => (
           <View key={i} style={styles.stepItem}>
             <View
               style={[
                 styles.stepDot,
-                step >= i && { backgroundColor: COLORS.blue },
+                step >= i && { backgroundColor: COLORS.primary },
               ]}
             />
-            <Text style={[styles.stepLabel, step === i && { color: COLORS.blue }]}>
+            <Text
+              style={[
+                styles.stepLabel,
+                step === i && { color: COLORS.primary },
+              ]}
+            >
               {label}
             </Text>
           </View>
         ))}
       </View>
 
-      <PagerView ref={pagerRef} style={{ flex: 1 }} scrollEnabled={false}>
+      <ScrollView
+        ref={pagerRef as any}
+        horizontal
+        pagingEnabled
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+        style={{ flex: 1 }}
+      >
         {/* ================= STEP 1 ================= */}
-        <ScrollView key="1" contentContainerStyle={styles.page}>
+        <ScrollView
+          key="1"
+          style={{ width }}
+          contentContainerStyle={styles.page}
+        >
           <Text style={styles.title}>Personal Details</Text>
 
           <TextInput
@@ -180,7 +184,7 @@ export default function BookingScreen() {
               editable={false}
               style={styles.input}
               placeholder="Date of Birth"
-              value={dob ? dob.toDateString() : ""}
+              value={dob ? dob.toDateString() : ''}
             />
           </TouchableOpacity>
 
@@ -231,23 +235,32 @@ export default function BookingScreen() {
           </MapView>
 
           <View style={styles.row}>
-            <OutlineButton label="Use Current Location" onPress={getCurrentLocation} />
-            <OutlineButton label="Set Manually" onPress={() => setManualLocation(true)} />
+            <OutlineButton
+              label="Use Current Location"
+              onPress={getCurrentLocation}
+            />
+            <OutlineButton
+              label="Set Manually"
+              onPress={() => setManualLocation(true)}
+            />
           </View>
 
-          <PrimaryButton
-            label="Next"
-            disabled={!step1Valid}
-            onPress={goNext}
-          />
+          <PrimaryButton label="Next" disabled={!step1Valid} onPress={goNext} />
         </ScrollView>
 
         {/* ================= STEP 2 ================= */}
-        <ScrollView key="2" contentContainerStyle={styles.page}>
+        <ScrollView
+          key="2"
+          style={{ width }}
+          contentContainerStyle={styles.page}
+        >
           <Text style={styles.title}>Availability</Text>
 
-          <TouchableOpacity onPress={() => setShowCalendar(true)} style={styles.input}>
-            <Text>{date ? date.toDateString() : "Select Date"}</Text>
+          <TouchableOpacity
+            onPress={() => setShowCalendar(true)}
+            style={styles.input}
+          >
+            <Text>{date ? date.toDateString() : 'Select Date'}</Text>
           </TouchableOpacity>
 
           {showCalendar && (
@@ -266,13 +279,12 @@ export default function BookingScreen() {
               {TIME_SLOTS.map((t) => (
                 <TouchableOpacity
                   key={t}
-                  style={[
-                    styles.slot,
-                    timeSlot === t && styles.slotActive,
-                  ]}
+                  style={[styles.slot, timeSlot === t && styles.slotActive]}
                   onPress={() => setTimeSlot(t)}
                 >
-                  <Text style={{ color: timeSlot === t ? "#fff" : COLORS.blue }}>
+                  <Text
+                    style={{ color: timeSlot === t ? '#fff' : COLORS.primary }}
+                  >
                     {t}
                   </Text>
                 </TouchableOpacity>
@@ -282,7 +294,7 @@ export default function BookingScreen() {
 
           <View style={styles.row}>
             <Checkbox
-              status={hasPrescription ? "checked" : "unchecked"}
+              status={hasPrescription ? 'checked' : 'unchecked'}
               onPress={() => setHasPrescription(!hasPrescription)}
             />
             <Text>I have a prescription</Text>
@@ -290,14 +302,16 @@ export default function BookingScreen() {
 
           {hasPrescription && (
             <OutlineButton
-              label={prescriptionFile ? "Prescription Added" : "Upload Prescription"}
+              label={
+                prescriptionFile ? 'Prescription Added' : 'Upload Prescription'
+              }
               onPress={pickPrescription}
             />
           )}
 
           <View style={styles.row}>
             <Checkbox
-              status={prc ? "checked" : "unchecked"}
+              status={prc ? 'checked' : 'unchecked'}
               onPress={() => setPrc(!prc)}
             />
             <Text>Post Report Consultation</Text>
@@ -307,10 +321,7 @@ export default function BookingScreen() {
             DOCTORS.map((d) => (
               <TouchableOpacity
                 key={d}
-                style={[
-                  styles.doctor,
-                  doctor === d && styles.doctorActive,
-                ]}
+                style={[styles.doctor, doctor === d && styles.doctorActive]}
                 onPress={() => setDoctor(d)}
               >
                 <Text>{d}</Text>
@@ -329,12 +340,16 @@ export default function BookingScreen() {
         </ScrollView>
 
         {/* ================= STEP 3 ================= */}
-        <ScrollView key="3" contentContainerStyle={styles.page}>
+        <ScrollView
+          key="3"
+          style={{ width }}
+          contentContainerStyle={styles.page}
+        >
           <Text style={styles.title}>Confirm Booking</Text>
 
           <PrimaryButton label="Confirm Booking" onPress={confirmBooking} />
         </ScrollView>
-      </PagerView>
+      </ScrollView>
 
       <Toast />
     </SafeAreaView>
@@ -345,26 +360,26 @@ export default function BookingScreen() {
 
 const styles = StyleSheet.create({
   stepHeader: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     paddingVertical: 16,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.card,
   },
-  stepItem: { alignItems: "center" },
+  stepItem: { alignItems: 'center' },
   stepDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#CBD5E1",
+    backgroundColor: '#CBD5E1',
     marginBottom: 4,
   },
-  stepLabel: { fontSize: 12, color: "#6B7280" },
+  stepLabel: { fontSize: 12, color: '#6B7280' },
 
   page: { padding: 20 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
+  title: { fontSize: 24, fontWeight: '700', marginBottom: 16 },
 
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
@@ -372,29 +387,29 @@ const styles = StyleSheet.create({
 
   map: { height: 180, borderRadius: 12, marginVertical: 12 },
 
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
 
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 
   slot: {
     borderWidth: 1,
-    borderColor: COLORS.blue,
+    borderColor: COLORS.primary,
     padding: 12,
     borderRadius: 10,
     width: width / 2 - 30,
-    alignItems: "center",
+    alignItems: 'center',
   },
-  slotActive: { backgroundColor: COLORS.blue },
+  slotActive: { backgroundColor: COLORS.primary },
 
   doctor: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 14,
     borderRadius: 12,
     marginTop: 8,
   },
   doctorActive: {
     borderWidth: 2,
-    borderColor: COLORS.teal,
+    borderColor: COLORS.primary,
   },
 });
 
@@ -405,14 +420,14 @@ const PrimaryButton = ({ label, onPress, disabled }: any) => (
     onPress={onPress}
     disabled={disabled}
     style={{
-      backgroundColor: COLORS.blue,
+      backgroundColor: COLORS.primary,
       padding: 16,
       borderRadius: 16,
       opacity: disabled ? 0.4 : 1,
-      alignItems: "center",
+      alignItems: 'center',
     }}
   >
-    <Text style={{ color: "#fff", fontSize: 17 }}>{label}</Text>
+    <Text style={{ color: '#fff', fontSize: 17 }}>{label}</Text>
   </TouchableOpacity>
 );
 
@@ -421,13 +436,13 @@ const OutlineButton = ({ label, onPress }: any) => (
     onPress={onPress}
     style={{
       borderWidth: 1,
-      borderColor: COLORS.blue,
+      borderColor: COLORS.primary,
       padding: 16,
       borderRadius: 16,
-      alignItems: "center",
+      alignItems: 'center',
       flex: 1,
     }}
   >
-    <Text style={{ color: COLORS.blue }}>{label}</Text>
+    <Text style={{ color: COLORS.primary }}>{label}</Text>
   </TouchableOpacity>
 );

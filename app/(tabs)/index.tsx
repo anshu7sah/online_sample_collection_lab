@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,80 +7,170 @@ import {
   Image,
   TextInput,
   FlatList,
+  ScrollView,
   ActivityIndicator,
+  Dimensions,
+  Animated,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
-  TestTube,
-  FileText,
-  Activity as ActivityIcon,
-  Calendar,
-  Heart,
+  FlaskConical,
+  ClipboardList,
+  Activity,
+  CalendarCheck,
   Search,
+  X,
+  ArrowRight,
+  Sparkles,
+  Stethoscope,
+  Truck,
+  Clock,
+  ChevronRight,
+  Bell,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
 
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTests } from '@/hooks/useTests';
 import { usePackages } from '@/hooks/usePackages';
+import { useCurrent } from '@/hooks/useCurrent';
+import { COLORS } from '@/lib/theme';
 
+const { width } = Dimensions.get('window');
 const DEFAULT_PACKAGE_IMAGE =
   'https://images.pexels.com/photos/4386466/pexels-photo-4386466.jpeg?auto=compress&cs=tinysrgb&w=400';
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
   const debouncedSearch = useDebounce(searchQuery, 400);
+  const { data: user } = useCurrent();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-  const isSearching = debouncedSearch.trim().length > 0;
+  const isSearching = isSearchActive || debouncedSearch.trim().length > 0;
 
-  /* ---------------- TEST SEARCH ---------------- */
+  /* ── Initials for avatar ── */
+  const getInitials = () => {
+    if (!user?.name) return '?';
+    return user.name
+      .split(' ')
+      .map((w: string) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const notificationCount = 2; // Dummy notification count
+
   const { data: testData, isLoading: testsLoading } = useTests({
     page: 1,
     limit: 50,
     filters: { testName: debouncedSearch },
   });
-
   const tests = testData?.tests || [];
 
-  /* ---------------- FEATURED PACKAGES ---------------- */
   const { data: packageData, isLoading: packagesLoading } = usePackages({
     page: 1,
     limit: 10,
     filters: {},
   });
-
   const featuredPackages = packageData?.data || [];
 
-  const quickLinks = [
-    { title: 'Lab Packages', icon: TestTube, color: '#007E7C', route: '/tests/packages' },
-    { title: 'All Tests', icon: ActivityIcon, color: '#FF9900', route: '/tests/all-tests' },
-    { title: 'My Reports', icon: FileText, color: '#007E7C', route: '/reports' },
-    { title: 'Book Test', icon: Calendar, color: '#FF9900', route: '/tests' },
+  /* ── Quick Actions ── */
+  const quickActions = [
+    {
+      title: 'Lab\nPackages',
+      icon: FlaskConical,
+      bg: COLORS.primaryLight,
+      iconColor: COLORS.primary,
+      route: '/tests/packages',
+    },
+    {
+      title: 'All\nTests',
+      icon: Activity,
+      bg: COLORS.secondaryLight,
+      iconColor: COLORS.secondary,
+      route: '/tests/all-tests',
+    },
+    {
+      title: 'My\nReports',
+      icon: ClipboardList,
+      bg: '#EDE9FE',
+      iconColor: '#7C3AED',
+      route: '/reports',
+    },
+    {
+      title: 'Book\nTest',
+      icon: CalendarCheck,
+      bg: '#FEE2E2',
+      iconColor: '#DC2626',
+      route: '/tests',
+    },
   ];
 
-  /* ---------------- SEARCH RESULTS ---------------- */
+  /* ── Features ── */
+  const features = [
+    {
+      icon: Truck,
+      title: 'Home Collection',
+      desc: 'Sample pickup from your door',
+      color: COLORS.primary,
+    },
+    {
+      icon: Clock,
+      title: 'Quick Reports',
+      desc: 'Results within 24 hours',
+      color: COLORS.secondary,
+    },
+    {
+      icon: Stethoscope,
+      title: 'Expert Care',
+      desc: 'Certified lab technicians',
+      color: '#7C3AED',
+    },
+  ];
+
+  /* ── Greeting ── */
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const firstName = user?.name?.split(' ')[0] || 'there';
+
+  /* ── Search Results ── */
   const renderSearchResults = () => {
     if (testsLoading) {
       return (
         <ActivityIndicator
           size="large"
-          color="#007E7C"
-          style={{ marginTop: 50 }}
+          color={COLORS.primary}
+          style={{ marginTop: 60 }}
         />
       );
     }
-
     if (tests.length === 0) {
-      return <Text style={styles.noResultsText}>No tests found.</Text>;
+      return (
+        <View style={s.emptySearch}>
+          <Search size={48} color={COLORS.grey300} />
+          <Text style={s.emptyTitle}>No tests found</Text>
+          <Text style={s.emptyDesc}>Try a different search term</Text>
+        </View>
+      );
     }
-
     return (
       <FlatList
         data={tests}
         keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12 }}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.testCard}
+            style={s.searchCard}
+            activeOpacity={0.7}
             onPress={() =>
               router.push({
                 pathname: '/tests/test-details',
@@ -88,225 +178,701 @@ export default function HomeScreen() {
               })
             }
           >
-            <Text style={styles.testName}>{item.testName}</Text>
-            <Text style={styles.testPrice}>NPR {item.amount}</Text>
+            <View style={s.searchIconWrap}>
+              <FlaskConical size={18} color={COLORS.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.searchName} numberOfLines={1}>
+                {item.testName}
+              </Text>
+              <Text style={s.searchMeta}>Individual Test</Text>
+            </View>
+            <Text style={s.searchPrice}>NPR {item.amount}</Text>
+            <ChevronRight size={16} color={COLORS.grey400} />
           </TouchableOpacity>
         )}
       />
     );
   };
 
-  /* ---------------- HOME CONTENT ---------------- */
-  const renderHomeContent = () => (
-    <>
-      {/* Quick Links */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Links</Text>
-        <View style={styles.quickLinksGrid}>
-          {quickLinks.map((link, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.quickLinkCard, { borderLeftColor: link.color }]}
-              onPress={() => router.push(link.route as any)}
-            >
-              <link.icon size={24} color={link.color} />
-              <Text style={styles.quickLinkText}>{link.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      {/* Featured Packages */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Featured Packages</Text>
-
-        {packagesLoading ? (
-          <ActivityIndicator size="small" color="#007E7C" />
-        ) : (
-          <FlatList
-            horizontal
-            data={featuredPackages}
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.packageCard}
-                onPress={() =>
-                  router.push({
-                    pathname: '/tests/package-details',
-                    params: { id: item.id, type: 'package' },
-                  })
-                }
-              >
-                <Image
-                  source={{ uri: DEFAULT_PACKAGE_IMAGE }}
-                  style={styles.packageImage}
-                />
-                <View style={styles.packageInfo}>
-                  <Text style={styles.packageName}>{item.name}</Text>
-                  <Text style={styles.packagePrice}>
-                    NPR {item.price}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-        )}
-      </View>
-    </>
-  );
-
+  /* ── Main Content ── */
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Image
-            source={require('../../assets/logo.png')}
-            style={styles.logo}
-          />
-          <View>
-            <Text style={styles.welcomeText}>Welcome to</Text>
-            <Text style={styles.clinicName}>Sukra Polyclinic</Text>
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor="#004e56" />
+
+      {isSearching ? (
+        <SafeAreaView style={s.root}>
+          {/* Search header */}
+          <View style={s.searchHeader}>
+            <View style={s.searchBarActive}>
+              <Search size={18} color={COLORS.grey400} />
+              <TextInput
+                style={s.searchInputActive}
+                placeholder="Search tests..."
+                placeholderTextColor={COLORS.grey400}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery('');
+                  setIsSearchActive(false);
+                }}
+              >
+                <X size={18} color={COLORS.grey500} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-        <Heart size={32} color="#007E7C" />
-      </View>
+          {renderSearchResults()}
+        </SafeAreaView>
+      ) : (
+        <Animated.ScrollView
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true },
+          )}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
+          {/* ═══ Hero Header ═══ */}
+          <LinearGradient
+            colors={['#004e56', COLORS.primary, '#00888a']}
+            locations={[0, 0.5, 1]}
+            style={s.hero}
+          >
+            {/* Decorative circles - pointerEvents="none" to prevent interaction blocking */}
+            <View style={s.deco1} pointerEvents="none" />
+            <View style={s.deco2} pointerEvents="none" />
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Search size={20} color="#6B7280" />
-        <TextInput
-          placeholder="Search for tests..."
-          style={styles.searchInput}
-          placeholderTextColor="#6B7280"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
+            <SafeAreaView edges={['top']}>
+              {/* Top row */}
+              <View style={s.heroTop}>
+                <TouchableOpacity
+                  style={s.heroLeft}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/profile')}
+                >
+                  <View style={s.avatarRing}>
+                    <View style={s.avatarInitials}>
+                      <Text style={s.avatarInitialsText}>{getInitials()}</Text>
+                    </View>
+                  </View>
+                  <View>
+                    <Text style={s.greeting}>{getGreeting()} 👋</Text>
+                    <Text style={s.userName}>{firstName}</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.notifBtn, { zIndex: 20 }]}
+                  onPress={() => router.push('/profile/notifications' as any)}
+                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                >
+                  <Bell size={20} color="#fff" />
+                  {notificationCount > 0 && (
+                    <View style={s.notifBadge}>
+                      <Text style={s.notifBadgeText}>{notificationCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
 
-      {/* Body */}
-      {isSearching ? renderSearchResults() : renderHomeContent()}
-    </SafeAreaView>
+              {/* Search bar */}
+              <TouchableOpacity
+                style={s.searchBarHero}
+                activeOpacity={0.9}
+                onPress={() => {
+                  setSearchQuery('');
+                  setIsSearchActive(true);
+                }}
+              >
+                <Search size={18} color="rgba(255,255,255,0.6)" />
+                <Text style={s.searchPlaceholder}>
+                  Search for tests & packages...
+                </Text>
+              </TouchableOpacity>
+            </SafeAreaView>
+          </LinearGradient>
+
+          {/* ═══ Quick Actions ═══ */}
+          <View style={s.quickSection}>
+            <View style={s.quickGrid}>
+              {quickActions.map((item, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={s.quickCard}
+                  activeOpacity={0.7}
+                  onPress={() => router.push(item.route as any)}
+                >
+                  <View style={[s.quickIcon, { backgroundColor: item.bg }]}>
+                    <item.icon size={24} color={item.iconColor} />
+                  </View>
+                  <Text style={s.quickLabel}>{item.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* ═══ Promo Banner ═══ */}
+          <View style={s.promoWrap}>
+            <LinearGradient
+              colors={[COLORS.secondary, '#d97706']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={s.promo}
+            >
+              <View style={{ flex: 1 }}>
+                <View style={s.promoTag}>
+                  <Sparkles size={12} color={COLORS.secondary} />
+                  <Text style={s.promoTagText}>SPECIAL OFFER</Text>
+                </View>
+                <Text style={s.promoTitle}>Full Body Checkup</Text>
+                <Text style={s.promoDesc}>
+                  70+ tests including CBC, Thyroid, Liver & more
+                </Text>
+                <TouchableOpacity
+                  style={s.promoBtn}
+                  onPress={() => router.push('/tests/packages' as any)}
+                >
+                  <Text style={s.promoBtnText}>Book Now</Text>
+                  <ArrowRight size={14} color={COLORS.secondary} />
+                </TouchableOpacity>
+              </View>
+              <View style={s.promoGraphic}>
+                <Stethoscope size={52} color="rgba(255,255,255,0.25)" />
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* ═══ Why Choose Us ═══ */}
+          <View style={s.whySection}>
+            <Text style={s.sectionTitle}>Why Choose Us</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+            >
+              {features.map((f, i) => (
+                <View key={i} style={s.featureCard}>
+                  <View
+                    style={[s.featureIcon, { backgroundColor: f.color + '15' }]}
+                  >
+                    <f.icon size={22} color={f.color} />
+                  </View>
+                  <Text style={s.featureTitle}>{f.title}</Text>
+                  <Text style={s.featureDesc}>{f.desc}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* ═══ Featured Packages ═══ */}
+          <View style={s.pkgSection}>
+            <View style={s.sectionRow}>
+              <Text style={s.sectionTitle}>Popular Packages</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/tests/packages' as any)}
+              >
+                <Text style={s.seeAll}>See All</Text>
+              </TouchableOpacity>
+            </View>
+
+            {packagesLoading ? (
+              <ActivityIndicator
+                size="small"
+                color={COLORS.primary}
+                style={{ marginTop: 20 }}
+              />
+            ) : (
+              <FlatList
+                horizontal
+                data={featuredPackages}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={s.pkgCard}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                      router.push({
+                        pathname: '/tests/package-details',
+                        params: { id: item.id, type: 'package' },
+                      })
+                    }
+                  >
+                    <Image
+                      source={{ uri: DEFAULT_PACKAGE_IMAGE }}
+                      style={s.pkgImg}
+                    />
+                    <LinearGradient
+                      colors={['transparent', 'rgba(0,0,0,0.7)']}
+                      style={s.pkgOverlay}
+                    />
+                    <View style={s.pkgContent}>
+                      <Text style={s.pkgName} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+                      <View style={s.pkgBottom}>
+                        <Text style={s.pkgPrice}>NPR {item.price}</Text>
+                        <View style={s.pkgArrow}>
+                          <ArrowRight size={14} color="#fff" />
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+
+          {/* ═══ CTA Banner ═══ */}
+          <View style={s.ctaWrap}>
+            <View style={s.ctaBanner}>
+              <View>
+                <Text style={s.ctaTitle}>Need Help Choosing?</Text>
+                <Text style={s.ctaDesc}>
+                  Our experts can recommend the{'\n'}right tests for you
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={s.ctaBtn}
+                onPress={() => router.push('/tests' as any)}
+              >
+                <Text style={s.ctaBtnText}>Browse</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.ScrollView>
+      )}
+    </View>
   );
 }
 
-/* ---------------- STYLES ---------------- */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0FDFD' },
+/* ═══════════════════════════════════════
+   S T Y L E S
+   ═══════════════════════════════════════ */
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#F5F7FA' },
 
-  header: {
+  /* ── Hero ── */
+  hero: {
+    paddingBottom: 30,
+    overflow: 'hidden',
+  },
+  heroTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 4,
+    paddingTop: 12,
+    paddingBottom: 8,
+    zIndex: 10,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  logo: { width: 40, height: 40, resizeMode: 'contain', marginRight: 10 },
-  welcomeText: { fontSize: 14, color: '#6B7280' },
-  clinicName: {
+  heroLeft: { flexDirection: 'row', alignItems: 'center' },
+  avatarRing: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarInitials: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitialsText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: COLORS.primary,
+  },
+  greeting: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  userName: {
     fontSize: 20,
+    color: '#fff',
     fontWeight: '700',
-    color: '#007E7C',
+    letterSpacing: 0.2,
   },
-
-  searchContainer: {
+  notifBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#004e56',
+  },
+  notifBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  searchBarHero: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     marginHorizontal: 20,
+    marginTop: 14,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  searchInput: {
+  searchPlaceholder: {
     marginLeft: 10,
-    fontSize: 16,
-    color: '#1F2937',
-    flex: 1,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 15,
+  },
+  deco1: {
+    position: 'absolute',
+    top: -width * 0.2,
+    right: -width * 0.15,
+    width: width * 0.6,
+    height: width * 0.6,
+    borderRadius: width * 0.3,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  deco2: {
+    position: 'absolute',
+    bottom: -width * 0.1,
+    left: -width * 0.2,
+    width: width * 0.5,
+    height: width * 0.5,
+    borderRadius: width * 0.25,
+    backgroundColor: 'rgba(239,142,31,0.08)',
   },
 
-  section: { marginBottom: 24 },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
+  /* ── Quick Actions ── */
+  quickSection: {
+    marginTop: -16,
     paddingHorizontal: 20,
   },
+  quickGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  quickCard: {
+    alignItems: 'center',
+    width: (width - 72) / 4,
+  },
+  quickIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.grey700,
+    textAlign: 'center',
+    lineHeight: 16,
+  },
 
-  quickLinksGrid: { paddingHorizontal: 20 },
-  quickLinkCard: {
+  /* ── Promo ── */
+  promoWrap: { paddingHorizontal: 20, marginTop: 20 },
+  promo: {
+    borderRadius: 18,
+    padding: 20,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  promoTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    elevation: 2,
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 10,
+    gap: 4,
   },
-  quickLinkText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginLeft: 16,
+  promoTagText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.secondary,
+    letterSpacing: 0.5,
   },
-
-  packageCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginRight: 16,
-    width: 200,
-    elevation: 2,
-  },
-  packageImage: {
-    width: '100%',
-    height: 120,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  packageInfo: { padding: 16 },
-  packageName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+  promoTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
     marginBottom: 4,
   },
-  packagePrice: {
-    fontSize: 14,
+  promoDesc: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  promoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  promoBtnText: {
+    fontSize: 13,
     fontWeight: '700',
-    color: '#007E7C',
+    color: COLORS.secondary,
+  },
+  promoGraphic: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 80,
   },
 
-  testCard: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 20,
-    marginBottom: 12,
+  /* ── Why Choose ── */
+  whySection: { marginTop: 28 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.grey800,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  featureCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 16,
-    borderRadius: 12,
+    width: 155,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
-  testName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+  featureIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  testPrice: {
+  featureTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#007E7C',
+    color: COLORS.grey800,
+    marginBottom: 4,
+  },
+  featureDesc: {
+    fontSize: 12,
+    color: COLORS.grey500,
+    lineHeight: 16,
   },
 
-  noResultsText: {
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 16,
-    color: '#6B7280',
+  /* ── Packages ── */
+  pkgSection: { marginTop: 28 },
+  sectionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 20,
+    marginBottom: 14,
   },
+  seeAll: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.secondary,
+  },
+  pkgCard: {
+    width: 200,
+    height: 220,
+    borderRadius: 18,
+    marginRight: 14,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  pkgImg: { width: '100%', height: '100%', position: 'absolute' },
+  pkgOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '60%',
+  },
+  pkgContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+  },
+  pkgName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  pkgBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pkgPrice: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  pkgArrow: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ── CTA ── */
+  ctaWrap: { paddingHorizontal: 20, marginTop: 28 },
+  ctaBanner: {
+    backgroundColor: COLORS.primaryLight,
+    borderRadius: 18,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.primaryMuted,
+  },
+  ctaTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.primaryDark,
+    marginBottom: 4,
+  },
+  ctaDesc: {
+    fontSize: 12,
+    color: COLORS.grey500,
+    lineHeight: 18,
+  },
+  ctaBtn: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  ctaBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  /* ── Search Active ── */
+  searchHeader: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grey100,
+  },
+  searchBarActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.grey50,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.grey200,
+  },
+  searchInputActive: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 15,
+    color: COLORS.grey800,
+  },
+  searchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  searchIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  searchName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.grey800,
+  },
+  searchMeta: { fontSize: 12, color: COLORS.grey400, marginTop: 2 },
+  searchPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginRight: 8,
+  },
+
+  /* ── Empty ── */
+  emptySearch: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 80,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.grey700,
+    marginTop: 16,
+  },
+  emptyDesc: { fontSize: 14, color: COLORS.grey400, marginTop: 4 },
 });

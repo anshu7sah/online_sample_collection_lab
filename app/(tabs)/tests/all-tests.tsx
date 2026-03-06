@@ -7,29 +7,42 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Search,
-  Filter,
   Plus,
   ChevronLeft,
   ChevronRight,
+  Activity,
+  FlaskConical,
+  Inbox,
+  X,
+  SlidersHorizontal,
+  Check,
 } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
 import { useApp } from '@/contexts/AppContext';
 import { useTests } from '@/hooks/useTests';
 import { useDebounce } from '@/hooks/useDebounce';
+import { COLORS } from '@/lib/theme';
+
+const { width } = Dimensions.get('window');
 
 export default function AllTestsScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const params = useLocalSearchParams<{ search?: string }>();
+  const [searchQuery, setSearchQuery] = useState(params.search || '');
   const debouncedSearch = useDebounce(searchQuery, 400);
 
   const [page, setPage] = useState(1);
   const limit = 10;
-  const { dispatch } = useApp();
+  const { dispatch, state } = useApp();
+  const [addingItems, setAddingItems] = useState<Set<number>>(new Set());
 
   const [filters, setFilters] = useState<any>({});
 
@@ -45,8 +58,22 @@ export default function AllTestsScreen() {
 
   const tests = data?.tests || [];
   const totalPages = data?.pagination?.totalPages || 1;
+  const totalTests = data?.pagination?.total || 0;
 
-  const addToCart = (test: any) => {
+  const isInCart = (testId: number) => {
+    return state.cart.some(
+      (item: any) => item.id === testId && item.type === 'test',
+    );
+  };
+
+  const addToCart = async (test: any) => {
+    if (isInCart(test.id)) return;
+
+    setAddingItems((prev) => new Set(prev).add(test.id));
+
+    // Simulate a small delay for "Adding..." feedback
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
     dispatch({
       type: 'ADD_TO_CART',
       payload: {
@@ -57,11 +84,16 @@ export default function AllTestsScreen() {
       },
     });
 
+    setAddingItems((prev) => {
+      const next = new Set(prev);
+      next.delete(test.id);
+      return next;
+    });
+
     Toast.show({
       type: 'success',
       text1: 'Added to cart',
       text2: test.testName,
-      position: 'bottom',
       visibilityTime: 1800,
     });
   };
@@ -70,191 +102,527 @@ export default function AllTestsScreen() {
   const goPrev = () => page > 1 && setPage((prev) => prev - 1);
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color="#6B7280" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search tests..."
-            placeholderTextColor="#6B7280"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-        <TouchableOpacity style={styles.filterButton}>
-          <Filter size={20} color="#6B7280" />
-        </TouchableOpacity>
+    <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor="#004e56" />
+
+      {/* ═══ Header Section ═══ */}
+      <View style={s.heroContainer}>
+        <LinearGradient
+          colors={['#004e56', COLORS.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={s.heroBg}
+        >
+          <SafeAreaView edges={['top']} style={s.heroSafeArea}>
+            <View style={s.searchBar}>
+              <Search size={18} color={COLORS.primary} strokeWidth={2} />
+              <TextInput
+                style={s.searchInput}
+                placeholder="Search tests by name..."
+                placeholderTextColor={COLORS.grey500}
+                value={searchQuery}
+                onChangeText={(text) => {
+                  setSearchQuery(text);
+                  setPage(1);
+                }}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <X size={18} color={COLORS.grey400} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </SafeAreaView>
+        </LinearGradient>
       </View>
 
-      {/* Content */}
+      {/* ═══ Content ═══ */}
       {isLoading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#007E7C" />
+        <View style={s.loaderWrap}>
+          <View style={s.loaderCircle}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+          <Text style={s.loaderText}>Finding tests for you...</Text>
+        </View>
+      ) : tests.length === 0 ? (
+        <View style={s.emptyWrap}>
+          <View style={s.emptyCircle}>
+            <Inbox size={40} color={COLORS.grey300} />
+          </View>
+          <Text style={s.emptyTitle}>No tests found</Text>
+          <Text style={s.emptyDesc}>
+            {searchQuery
+              ? `No results for "${searchQuery}"`
+              : 'Try searching for a specific test'}
+          </Text>
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              style={s.clearSearchBtn}
+              onPress={() => setSearchQuery('')}
+            >
+              <Text style={s.clearSearchText}>Clear Search</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={s.content}
           showsVerticalScrollIndicator={false}
         >
-          {tests.map((test) => (
-            <TouchableOpacity
-              key={test.id}
-              activeOpacity={0.85}
-              onPress={() =>
-                router.push({
-                  pathname: '/tests/test-details',
-                  params: { id: test.id, type: 'test' },
-                })
-              }
-            >
-              <View style={styles.testCard}>
-                <View style={styles.testInfo}>
-                  <Text style={styles.testName}>{test.testName}</Text>
-                  {test.department && (
-                    <Text style={styles.testCategory}>
-                      {test.department}
-                    </Text>
-                  )}
-                  <Text style={styles.testPrice}>NPR {test.amount}</Text>
-                </View>
-
-                {/* + BUTTON */}
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={(e) => {
-                    e.stopPropagation(); // prevent navigation
-                    addToCart(test);
-                  }}
-                >
-                  <Plus size={16} color="#007E7C" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
-
-          {/* Pagination (UNCHANGED) */}
-          <View style={styles.pagination}>
-            <TouchableOpacity
-              style={[styles.pageButton, page === 1 && styles.disabled]}
-              onPress={goPrev}
-              disabled={page === 1}
-            >
-              <ChevronLeft
-                size={20}
-                color={page === 1 ? '#A1A1AA' : '#007E7C'}
-              />
-              <Text
-                style={[styles.pageText, page === 1 && styles.disabledText]}
-              >
-                Prev
-              </Text>
-            </TouchableOpacity>
-
-            <Text style={styles.pageCounter}>
-              Page {page} / {totalPages}
+          {/* Results count */}
+          <View style={s.resultsMeta}>
+            <Text style={s.resultsCount}>
+              Showing {(page - 1) * limit + 1}–
+              {Math.min(page * limit, totalTests)} of {totalTests}
             </Text>
-
-            <TouchableOpacity
-              style={[
-                styles.pageButton,
-                page === totalPages && styles.disabled,
-              ]}
-              onPress={goNext}
-              disabled={page === totalPages}
-            >
-              <Text
-                style={[
-                  styles.pageText,
-                  page === totalPages && styles.disabledText,
-                ]}
-              >
-                Next
-              </Text>
-              <ChevronRight
-                size={20}
-                color={page === totalPages ? '#A1A1AA' : '#007E7C'}
-              />
-            </TouchableOpacity>
           </View>
+
+          {tests.map((test: any, index: number) => {
+            const inCart = isInCart(test.id);
+            return (
+              <TouchableOpacity
+                key={test.id}
+                activeOpacity={0.8}
+                onPress={() =>
+                  router.push({
+                    pathname: '/tests/test-details',
+                    params: { id: test.id, type: 'test' },
+                  })
+                }
+              >
+                <View style={s.card}>
+                  {/* Left color accent */}
+                  <LinearGradient
+                    colors={[COLORS.primary, '#00888a']}
+                    style={s.cardAccent}
+                  />
+                  <View style={s.cardBody}>
+                    <View style={s.cardRow}>
+                      <View style={s.cardIconWrap}>
+                        <FlaskConical size={20} color={COLORS.primary} />
+                      </View>
+                      <View style={s.cardInfo}>
+                        <Text style={s.cardTitle} numberOfLines={2}>
+                          {test.testName}
+                        </Text>
+                        {test.department && (
+                          <View style={s.deptTag}>
+                            <Text style={s.deptTagText}>{test.department}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <View style={s.cardFooter}>
+                      <View style={s.priceWrap}>
+                        <Text style={s.priceLabel}>Price</Text>
+                        <Text style={s.cardPrice}>NPR {test.amount}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[s.addBtn, inCart && s.addBtnActive]}
+                        activeOpacity={0.7}
+                        disabled={inCart || addingItems.has(test.id)}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          if (!inCart && !addingItems.has(test.id))
+                            addToCart(test);
+                        }}
+                      >
+                        {addingItems.has(test.id) ? (
+                          <>
+                            <ActivityIndicator size="small" color="#fff" />
+                            <Text style={s.addBtnText}>Adding...</Text>
+                          </>
+                        ) : inCart ? (
+                          <>
+                            <Check size={14} color={COLORS.primary} />
+                            <Text style={s.addBtnActiveText}>In Cart</Text>
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={14} color="#fff" />
+                            <Text style={s.addBtnText}>Add</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+
+          {/* ═══ Pagination ═══ */}
+          {totalPages > 1 && (
+            <View style={s.pagination}>
+              <TouchableOpacity
+                style={[s.pageBtn, page === 1 && s.pageBtnDisabled]}
+                onPress={goPrev}
+                disabled={page === 1}
+                activeOpacity={0.7}
+              >
+                <ChevronLeft
+                  size={16}
+                  color={page === 1 ? COLORS.grey300 : '#fff'}
+                />
+                <Text
+                  style={[s.pageBtnText, page === 1 && s.pageBtnTextDisabled]}
+                >
+                  Prev
+                </Text>
+              </TouchableOpacity>
+
+              <View style={s.pageIndicator}>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      style={[s.pageDot, pageNum === page && s.pageDotActive]}
+                      onPress={() => setPage(pageNum)}
+                    >
+                      <Text
+                        style={[
+                          s.pageDotText,
+                          pageNum === page && s.pageDotTextActive,
+                        ]}
+                      >
+                        {pageNum}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                {totalPages > 5 && <Text style={s.pageEllipsis}>...</Text>}
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  s.pageBtn,
+                  s.pageBtnNext,
+                  page === totalPages && s.pageBtnDisabled,
+                ]}
+                onPress={goNext}
+                disabled={page === totalPages}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    s.pageBtnText,
+                    s.pageBtnNextText,
+                    page === totalPages && s.pageBtnTextDisabled,
+                  ]}
+                >
+                  Next
+                </Text>
+                <ChevronRight
+                  size={16}
+                  color={page === totalPages ? COLORS.grey300 : '#fff'}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#F5F7FA' },
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0FDFD' }, // Home screen background color
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+  /* ── Hero ── */
+  heroContainer: {
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    overflow: 'hidden',
+    shadowColor: '#004e56',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+    zIndex: 10,
   },
-  searchContainer: {
-    flex: 1,
+  heroBg: {
+    paddingBottom: 16,
+  },
+  heroSafeArea: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  heroSub: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  deco1: {
+    position: 'absolute',
+    top: -50,
+    right: -20,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  deco2: {
+    position: 'absolute',
+    bottom: -80,
+    left: -40,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(239, 142, 31, 0.12)',
+  },
+
+  /* ── Search ── */
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fff',
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 12,
+    paddingLeft: 14,
+    paddingRight: 10,
+    paddingVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-    marginLeft: 8,
+    fontSize: 14,
+    color: COLORS.grey800,
+    fontWeight: '500',
+    marginLeft: 10,
   },
-  filterButton: { padding: 8, backgroundColor: '#FFFFFF', borderRadius: 12 },
-  content: { padding: 16, paddingBottom: 100 },
-  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  testCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  testInfo: { flex: 1 },
-  testName: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 },
-  testCategory: {
-    fontSize: 12,
-    color: '#6B7280',
-    backgroundColor: '#E0F2F1', // soft turquoise like home
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  testPrice: { fontSize: 16, fontWeight: '700', color: '#007E7C' },
-  addButton: {
-    width: 32,
-    height: 32,
-    backgroundColor: '#DCFDFB', // soft turquoise accent
-    borderRadius: 16,
-    justifyContent: 'center',
+
+  /* ── Loader ── */
+  loaderWrap: {
+    flex: 1,
     alignItems: 'center',
-    alignSelf: 'center',
+    justifyContent: 'center',
   },
+  loaderCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  loaderText: {
+    fontSize: 15,
+    color: COLORS.grey500,
+    fontWeight: '500',
+  },
+
+  /* ── Empty ── */
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: COLORS.grey100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: COLORS.grey700,
+    marginBottom: 6,
+  },
+  emptyDesc: {
+    fontSize: 14,
+    color: COLORS.grey400,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  clearSearchBtn: {
+    marginTop: 16,
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  clearSearchText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+
+  /* ── Content ── */
+  content: { padding: 20, paddingBottom: 30 },
+
+  /* ── Results meta ── */
+  resultsMeta: {
+    marginBottom: 14,
+  },
+  resultsCount: {
+    fontSize: 13,
+    color: COLORS.grey400,
+    fontWeight: '500',
+  },
+
+  /* ── Card ── */
+  card: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    marginBottom: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  cardAccent: { width: 5, borderTopLeftRadius: 18, borderBottomLeftRadius: 18 },
+  cardBody: { flex: 1, padding: 16 },
+  cardRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  cardIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: COLORS.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  cardInfo: { flex: 1, paddingRight: 10 },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.grey800,
+    marginBottom: 6,
+    lineHeight: 22,
+  },
+  deptTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  deptTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
+    letterSpacing: 0.3,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.grey100,
+  },
+  priceWrap: {},
+  priceLabel: {
+    fontSize: 11,
+    color: COLORS.grey400,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  cardPrice: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.primaryDark,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 6,
+  },
+  addBtnActive: {
+    backgroundColor: COLORS.primaryLight,
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryMuted,
+  },
+  addBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  addBtnActiveText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+
+  /* ── Pagination ── */
   pagination: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
-    paddingBottom: 16,
+    marginTop: 20,
+    paddingVertical: 4,
   },
-  pageButton: { flexDirection: 'row', alignItems: 'center' },
-  pageText: { color: '#007E7C', fontWeight: '600', marginHorizontal: 4 },
-  disabled: { opacity: 0.5 },
-  disabledText: { color: '#A1A1AA' },
-  pageCounter: { fontWeight: '600', color: '#1F2937' },
+  pageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 4,
+  },
+  pageBtnNext: {},
+  pageBtnDisabled: {
+    backgroundColor: COLORS.grey100,
+  },
+  pageBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  pageBtnNextText: {},
+  pageBtnTextDisabled: { color: COLORS.grey300 },
+  pageIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pageDot: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  pageDotActive: {
+    backgroundColor: COLORS.secondary,
+  },
+  pageDotText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.grey500,
+  },
+  pageDotTextActive: {
+    color: '#fff',
+  },
+  pageEllipsis: {
+    fontSize: 14,
+    color: COLORS.grey400,
+    fontWeight: '600',
+    marginLeft: 2,
+  },
 });

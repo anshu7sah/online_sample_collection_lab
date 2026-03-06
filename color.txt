@@ -1,0 +1,2 @@
+secondary color = #ef8e1f
+primary color = #006d77

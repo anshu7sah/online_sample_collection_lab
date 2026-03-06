@@ -1,55 +1,64 @@
 import { useCurrent } from '@/hooks/useCurrent';
+import { COLORS } from '@/lib/theme';
 import { Tabs, useRouter } from 'expo-router';
-import { Chrome as Home, TestTube, ShoppingCart, FileText, User } from 'lucide-react-native';
+import {
+  Home,
+  FlaskConical,
+  ShoppingCart,
+  ClipboardList,
+  UserCircle,
+} from 'lucide-react-native';
 import { useEffect } from 'react';
 
 export default function TabLayout() {
-  const router=useRouter();
+  const router = useRouter();
   const { data, isLoading } = useCurrent();
 
-
-  // ✅ Redirect ONLY after render
   useEffect(() => {
-      console.log("Current User Data:", data);
-
     if (!isLoading && !data) {
       router.replace('/auth/login');
-    } else if (!isLoading && data?.isNew){
-      router.replace("/auth/signup")
+    } else if (!isLoading && data?.isNew) {
+      router.replace('/auth/signup');
     }
   }, [data, isLoading, router]);
 
-  // ✅ Prevent flashing tabs while checking auth
   if (isLoading || !data) {
     return null;
   }
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarActiveTintColor: '#ef8e1f',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.55)',
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          paddingBottom: 8,
+          backgroundColor: COLORS.primary,
+          borderTopWidth: 0,
+          height: 68,
           paddingTop: 8,
-          height: 70,
+          paddingBottom: 10,
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.15,
+          shadowRadius: 6,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
           marginTop: 4,
         },
-      }}>
+        tabBarIconStyle: {
+          marginBottom: 0,
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} />
-          ),
+          tabBarIcon: ({ size, color }) => <Home size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -57,7 +66,7 @@ export default function TabLayout() {
         options={{
           title: 'Tests',
           tabBarIcon: ({ size, color }) => (
-            <TestTube size={size} color={color} />
+            <FlaskConical size={24} color={color} />
           ),
         }}
       />
@@ -66,7 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Cart',
           tabBarIcon: ({ size, color }) => (
-            <ShoppingCart size={size} color={color} />
+            <ShoppingCart size={24} color={color} />
           ),
         }}
       />
@@ -75,7 +84,7 @@ export default function TabLayout() {
         options={{
           title: 'Reports',
           tabBarIcon: ({ size, color }) => (
-            <FileText size={size} color={color} />
+            <ClipboardList size={24} color={color} />
           ),
         }}
       />
@@ -84,7 +93,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ size, color }) => (
-            <User size={size} color={color} />
+            <UserCircle size={24} color={color} />
           ),
         }}
       />

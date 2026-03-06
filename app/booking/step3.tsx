@@ -1,101 +1,105 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
-import { useBooking } from "./BookingContext"; // For personal & appointment info
-import { useRouter } from "expo-router";
-import PrimaryButton from "@/components/PrimaryButton";
-import Toast from "react-native-toast-message";
-import { useApp } from "@/contexts/AppContext";
-import { useState } from "react";
-import { useCreateBooking } from "@/hooks/useCreateBooking";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
+import { useBooking } from './BookingContext';
+import { useRouter } from 'expo-router';
+import Toast from 'react-native-toast-message';
+import { useApp } from '@/contexts/AppContext';
+import { useState } from 'react';
+import { useCreateBooking } from '@/hooks/useCreateBooking';
+import {
+  User,
+  Calendar,
+  ShoppingCart,
+  CreditCard,
+  ChevronLeft,
+  CheckCircle,
+  MapPin,
+  Phone,
+  Clock,
+  FileText,
+  Stethoscope,
+} from 'lucide-react-native';
+import { COLORS } from '@/lib/theme';
 
-const PAYMENT_MODES = ["PAY_LATER", "ESEWA", "KHALTI", "BANK_TRANSFER"];
+const PAYMENT_MODES = [
+  { key: 'PAY_LATER', label: 'Pay Later', icon: Clock },
+  { key: 'ESEWA', label: 'eSewa', icon: CreditCard },
+  { key: 'KHALTI', label: 'Khalti', icon: CreditCard },
+  { key: 'BANK_TRANSFER', label: 'Bank Transfer', icon: CreditCard },
+];
 
 export default function Step3() {
   const { state: bookingState } = useBooking();
   const { state: appState, dispatch } = useApp();
   const router = useRouter();
-  const {mutate: createBooking,isPending} = useCreateBooking();
+  const { mutate: createBooking, isPending } = useCreateBooking();
 
   const cart = appState.cart || [];
   const totalAmount = cart.reduce((sum, item) => sum + Number(item.price), 0);
 
-  const [selectedPayment, setSelectedPayment] = useState("PAY_LATER");
+  const [selectedPayment, setSelectedPayment] = useState('PAY_LATER');
 
-const confirmBooking = async () => {
-  try {
-    console.log("Final Booking Payload:", { bookingState, cart, paymentMode: selectedPayment });
+  const confirmBooking = async () => {
+    try {
+      const formData = new FormData();
+      if (bookingState.hasPrescription && bookingState.prescriptionFile) {
+        formData.append('file', {
+          uri: bookingState.prescriptionFile.uri,
+          name: bookingState.prescriptionFile.name,
+          type:
+            bookingState.prescriptionFile.mimeType ||
+            'application/octet-stream',
+        } as any);
+      }
+      formData.append('name', bookingState.name);
+      formData.append('age', bookingState.age.toString());
+      formData.append('gender', bookingState.gender);
+      formData.append('mobile', bookingState.mobile);
+      formData.append('address', bookingState.address);
+      formData.append(
+        'latitude',
+        bookingState.location?.latitude.toString() || '0',
+      );
+      formData.append(
+        'longitude',
+        bookingState.location?.longitude.toString() || '0',
+      );
+      formData.append('date', bookingState.date);
+      formData.append('timeSlot', bookingState.timeSlot);
+      formData.append('prcDoctor', bookingState.prcDoctor || '');
+      formData.append('paymentMode', selectedPayment);
+      cart.forEach((item, index) => {
+        formData.append(`items[${index}][type]`, item.type);
+        formData.append(`items[${index}][name]`, item.name);
+        formData.append(`items[${index}][price]`, item.price.toString());
+        if (item.type === 'test')
+          formData.append(`items[${index}][testId]`, item.id.toString());
+        if (item.type === 'package')
+          formData.append(`items[${index}][packageId]`, item.id.toString());
+      });
 
-    const formData = new FormData();
-
-    // Append prescription file if exists
-    if (bookingState.hasPrescription && bookingState.prescriptionFile) {
-      formData.append("file", {
-        uri: bookingState.prescriptionFile.uri,
-        name: bookingState.prescriptionFile.name,
-        type: bookingState.prescriptionFile.mimeType || "application/octet-stream",
-      } as any);
+      createBooking(formData, {
+        onSuccess: () => {
+          Toast.show({ type: 'success', text1: 'Booking Confirmed' });
+          dispatch({ type: 'CLEAR_CART' });
+          router.replace('/(tabs)');
+        },
+        onError: (error: any) => {
+          Toast.show({
+            type: 'error',
+            text1: error?.response?.data?.message || 'Booking failed',
+          });
+        },
+      });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Booking submission failed' });
     }
-
-    // Append booking info
-    formData.append("name", bookingState.name);
-    formData.append("age", bookingState.age.toString());
-    formData.append("gender", bookingState.gender);
-    formData.append("mobile", bookingState.mobile);
-    formData.append("address", bookingState.address);
-    formData.append("latitude", bookingState.location?.latitude.toString() || "0");
-    formData.append("longitude", bookingState.location?.longitude.toString() || "0");
-    formData.append("date", bookingState.date);
-    formData.append("timeSlot", bookingState.timeSlot);
-    formData.append("prcDoctor", bookingState.prcDoctor || "");
-    formData.append("paymentMode", selectedPayment); // from Step3 UI
-
-    // Append cart items
-    cart.forEach((item, index) => {
-      formData.append(`items[${index}][type]`, item.type);
-      formData.append(`items[${index}][name]`, item.name);
-      formData.append(`items[${index}][price]`, item.price.toString());
-      if (item.type === "test") formData.append(`items[${index}][testId]`, item.id.toString());
-      if (item.type === "package") formData.append(`items[${index}][packageId]`, item.id.toString());
-    });
-
-    // POST request to backend
-    // const response = await fetch("https://your-backend.com/bookings", {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "multipart/form-data",
-    //     Authorization: `Bearer ${appState.token}`, // if protected route
-    //   },
-    //   body: formData,
-    // });
-
-    // const data = await response.json();
-
-    // if (!response.ok) {
-    //   Toast.show({ type: "error", text1: data.message || "Booking failed" });
-    //   return;
-    // }
-
-    // Toast.show({ type: "success", text1: "Booking Confirmed" });
-
-    // // Clear cart and reset BookingContext
-    // dispatch({ type: "CLEAR_CART" });
-
-    // router.replace("/(tabs)");
-    createBooking(formData, {
-    onSuccess: () => {
-      Toast.show({ type: "success", text1: "Booking Confirmed" });
-      dispatch({ type: "CLEAR_CART" });
-      router.replace("/(tabs)");
-    },
-    onError: (error: any) => {
-      Toast.show({ type: "error", text1: error?.response?.data?.message || "Booking failed" });
-    },
-  });
-  } catch (error) {
-    console.error("Booking submission error:", error);
-    Toast.show({ type: "error", text1: "Booking submission failed" });
-  }
-};
-
+  };
 
   const isDisabled =
     !bookingState.name ||
@@ -105,181 +109,285 @@ const confirmBooking = async () => {
     cart.length === 0;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Confirm Booking</Text>
-
-      {/* Personal Details */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Personal Details</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Name:</Text>
-          <Text style={styles.value}>{bookingState.name}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Age:</Text>
-          <Text style={styles.value}>{bookingState.age}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Gender:</Text>
-          <Text style={styles.value}>{bookingState.gender}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Mobile:</Text>
-          <Text style={styles.value}>{bookingState.mobile}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Address:</Text>
-          <Text style={styles.value}>{bookingState.address}</Text>
-        </View>
+    <ScrollView
+      style={s.root}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Step Indicator */}
+      <View style={s.stepRow}>
+        {[1, 2, 3].map((n) => (
+          <View key={n} style={s.stepItem}>
+            <View style={[s.stepCircle, s.stepCircleActive]}>
+              <Text style={[s.stepNum, s.stepNumActive]}>{n}</Text>
+            </View>
+            <Text style={[s.stepLabel, s.stepLabelActive]}>
+              {n === 1 ? 'Details' : n === 2 ? 'Schedule' : 'Confirm'}
+            </Text>
+          </View>
+        ))}
       </View>
 
-      {/* Appointment Details */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Appointment Details</Text>
-        <View style={styles.row}>
-          <Text style={styles.label}>Date:</Text>
-          <Text style={styles.value}>{bookingState.date}</Text>
+      <Text style={s.title}>Confirm Booking</Text>
+
+      {/* ═══ Personal Details ═══ */}
+      <View style={s.card}>
+        <View style={s.cardHeader}>
+          <User size={16} color={COLORS.primary} />
+          <Text style={s.cardTitle}>Personal Details</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Time Slot:</Text>
-          <Text style={styles.value}>{bookingState.timeSlot}</Text>
+        <SummaryRow label="Name" value={bookingState.name} />
+        <SummaryRow label="Age" value={bookingState.age} />
+        <SummaryRow label="Gender" value={bookingState.gender} />
+        <SummaryRow label="Mobile" value={bookingState.mobile} />
+        <SummaryRow label="Address" value={bookingState.address} last />
+      </View>
+
+      {/* ═══ Appointment Details ═══ */}
+      <View style={s.card}>
+        <View style={s.cardHeader}>
+          <Calendar size={16} color={COLORS.primary} />
+          <Text style={s.cardTitle}>Appointment</Text>
         </View>
+        <SummaryRow label="Date" value={bookingState.date} />
+        <SummaryRow label="Time Slot" value={bookingState.timeSlot} />
         {bookingState.prcDoctor && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Doctor:</Text>
-            <Text style={styles.value}>{bookingState.prcDoctor}</Text>
-          </View>
+          <SummaryRow label="Doctor" value={bookingState.prcDoctor} />
         )}
         {bookingState.hasPrescription && bookingState.prescriptionFile && (
-          <View style={styles.row}>
-            <Text style={styles.label}>Prescription:</Text>
-            <Text style={styles.value}>{bookingState.prescriptionFile.name}</Text>
-          </View>
+          <SummaryRow
+            label="Prescription"
+            value={bookingState.prescriptionFile.name}
+            last
+          />
         )}
       </View>
 
-      {/* Cart Summary */}
+      {/* ═══ Cart Summary ═══ */}
       {cart.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Selected Tests / Packages</Text>
-          {cart.map((item) => (
-            <View key={item.id} style={styles.row}>
-              <Text style={styles.label}>{item.name}</Text>
-              <Text style={styles.value}>₹{Number(item.price).toFixed(2)}</Text>
-            </View>
+        <View style={s.card}>
+          <View style={s.cardHeader}>
+            <ShoppingCart size={16} color={COLORS.primary} />
+            <Text style={s.cardTitle}>Selected Tests / Packages</Text>
+          </View>
+          {cart.map((item, i) => (
+            <SummaryRow
+              key={item.id}
+              label={item.name}
+              value={`NPR ${Number(item.price)}`}
+              last={i === cart.length - 1}
+            />
           ))}
-          <View style={[styles.row, { marginTop: 8 }]}>
-            <Text style={[styles.label, { fontWeight: "700" }]}>Total Payable</Text>
-            <Text style={[styles.value, { fontWeight: "700" }]}>₹{totalAmount.toFixed(2)}</Text>
+          <View style={s.totalRow}>
+            <Text style={s.totalLabel}>Total Payable</Text>
+            <Text style={s.totalValue}>NPR {totalAmount.toLocaleString()}</Text>
           </View>
         </View>
       )}
 
-      {/* Payment Mode */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Payment Mode</Text>
-        {PAYMENT_MODES.map((mode) => (
-          <TouchableOpacity
-            key={mode}
-            style={[
-              styles.paymentOption,
-              selectedPayment === mode && styles.paymentOptionSelected,
-            ]}
-            onPress={() => setSelectedPayment(mode)}
-          >
-            <Text
-              style={[
-                styles.paymentText,
-                selectedPayment === mode && styles.paymentTextSelected,
-              ]}
-            >
-              {mode}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      {/* ═══ Payment ═══ */}
+      <View style={s.card}>
+        <View style={s.cardHeader}>
+          <CreditCard size={16} color={COLORS.primary} />
+          <Text style={s.cardTitle}>Payment Mode</Text>
+        </View>
+        <View style={s.paymentGrid}>
+          {PAYMENT_MODES.map((mode) => {
+            const active = selectedPayment === mode.key;
+            const Icon = mode.icon;
+            return (
+              <TouchableOpacity
+                key={mode.key}
+                style={[s.paymentBtn, active && s.paymentBtnActive]}
+                onPress={() => setSelectedPayment(mode.key)}
+                activeOpacity={0.7}
+              >
+                <Icon size={16} color={active ? '#fff' : COLORS.grey500} />
+                <Text style={[s.paymentText, active && s.paymentTextActive]}>
+                  {mode.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      {/* Buttons */}
-      <View style={styles.buttonColumn}>
-        <PrimaryButton
-          label="Previous"
+      {/* ═══ Navigation ═══ */}
+      <View style={s.navRow}>
+        <TouchableOpacity
+          style={s.prevBtn}
           onPress={() => router.back()}
-          style={{ backgroundColor: "#fff", borderWidth: 1, borderColor: "#008080" }}
-          textStyle={{ color: "#008080" }}
-        />
-        <PrimaryButton
-  label={isPending ? "Submitting..." : "Confirm Booking"}
-  onPress={confirmBooking}
-  disabled={isDisabled || isPending}
-/>
-
+          activeOpacity={0.7}
+        >
+          <ChevronLeft size={18} color={COLORS.primary} />
+          <Text style={s.prevBtnText}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.confirmBtn, (isDisabled || isPending) && { opacity: 0.4 }]}
+          disabled={isDisabled || isPending}
+          activeOpacity={0.8}
+          onPress={confirmBooking}
+        >
+          <CheckCircle size={18} color="#fff" />
+          <Text style={s.confirmBtnText}>
+            {isPending ? 'Submitting...' : 'Confirm'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingBottom: 40,
+/* Helper */
+function SummaryRow({
+  label,
+  value,
+  last,
+}: {
+  label: string;
+  value: string;
+  last?: boolean;
+}) {
+  return (
+    <View style={[sr.row, last && { borderBottomWidth: 0 }]}>
+      <Text style={sr.label}>{label}</Text>
+      <Text style={sr.value} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const sr = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grey100,
   },
+  label: { fontSize: 13, color: COLORS.grey400, fontWeight: '500' },
+  value: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.grey800,
+    maxWidth: '55%',
+    textAlign: 'right',
+  },
+});
+
+const s = StyleSheet.create({
+  root: { flex: 1, padding: 20, backgroundColor: '#F5F7FA' },
+
+  stepRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 32,
+    marginBottom: 24,
+  },
+  stepItem: { alignItems: 'center' },
+  stepCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.grey200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  stepCircleActive: { backgroundColor: COLORS.primary },
+  stepNum: { fontSize: 14, fontWeight: '700', color: COLORS.grey400 },
+  stepNumActive: { color: '#fff' },
+  stepLabel: { fontSize: 11, fontWeight: '600', color: COLORS.grey400 },
+  stepLabelActive: { color: COLORS.primary },
+
   title: {
-    fontSize: 24,
-    fontWeight: "700",
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.grey800,
     marginBottom: 20,
   },
+
   card: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 15,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 18,
     marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
-    color: "#008080",
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
+  cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.primaryDark },
+
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    marginTop: 4,
+    borderTopWidth: 1.5,
+    borderTopColor: COLORS.primary,
   },
-  label: {
-    fontWeight: "500",
-    color: "#374151",
-  },
-  value: {
-    fontWeight: "600",
-    color: "#111827",
-  },
-  buttonColumn: {
-    flexDirection: "column",
-    gap: 12,
-    marginTop: 24,
-  },
-  paymentOption: {
-    padding: 12,
+  totalLabel: { fontSize: 14, fontWeight: '700', color: COLORS.grey800 },
+  totalValue: { fontSize: 18, fontWeight: '800', color: COLORS.secondary },
+
+  paymentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  paymentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    width: '47%',
+    paddingVertical: 12,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D1D5DB",
-    marginVertical: 6,
-    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.grey200,
+    backgroundColor: '#fff',
   },
-  paymentOptionSelected: {
-    backgroundColor: "#008080",
-    borderColor: "#008080",
+  paymentBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
-  paymentText: {
-    color: "#374151",
-    fontWeight: "500",
+  paymentText: { fontSize: 13, fontWeight: '600', color: COLORS.grey500 },
+  paymentTextActive: { color: '#fff' },
+
+  navRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
+  prevBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    backgroundColor: '#fff',
   },
-  paymentTextSelected: {
-    color: "#fff",
-    fontWeight: "600",
+  prevBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: 15 },
+  confirmBtn: {
+    flex: 1.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
+  confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

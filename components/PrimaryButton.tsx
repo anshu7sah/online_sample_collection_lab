@@ -1,11 +1,18 @@
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from 'react-native';
+import { COLORS } from '@/lib/theme';
 
 type Props = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  style?: ViewStyle; // extra style for button container
-  textStyle?: TextStyle; // extra style for text
+  style?: ViewStyle;
+  textStyle?: TextStyle;
 };
 
 export default function PrimaryButton({
@@ -13,18 +20,14 @@ export default function PrimaryButton({
   onPress,
   disabled,
   style,
-  textStyle, 
+  textStyle,
 }: Props) {
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       disabled={disabled}
       onPress={onPress}
-      style={[
-        styles.button,
-        disabled && styles.disabled,
-        style, // apply extra container style
-      ]}
+      style={[styles.button, disabled && styles.disabled, style]}
     >
       <Text style={[styles.text, textStyle]}>{label}</Text>
     </TouchableOpacity>
@@ -33,17 +36,22 @@ export default function PrimaryButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: "#008080",
+    backgroundColor: COLORS.primary,
     paddingVertical: 16,
-    borderRadius: 20,
-    alignItems: "center",
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   disabled: {
     opacity: 0.4,
   },
   text: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '700',
   },
 });

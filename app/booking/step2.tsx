@@ -1,44 +1,63 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
-import { Checkbox } from "react-native-paper";
-import * as DocumentPicker from "expo-document-picker";
-import { useBooking } from "./BookingContext";
-import { useRouter } from "expo-router";
-import PrimaryButton from "@/components/PrimaryButton";
-import { useState } from "react";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
+import { Checkbox } from 'react-native-paper';
+import * as DocumentPicker from 'expo-document-picker';
+import { useBooking } from './BookingContext';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import {
+  Calendar,
+  Clock,
+  Upload,
+  X,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Stethoscope,
+} from 'lucide-react-native';
+import { COLORS } from '@/lib/theme';
 
 const TIME_SLOTS = [
-  "08:00-09:00", "09:00-10:00", "10:00-11:00", "11:00-12:00",
-  "12:00-13:00", "13:00-14:00", "14:00-15:00", "15:00-16:00",
-  "16:00-17:00", "17:00-18:00",
+  '08:00-09:00',
+  '09:00-10:00',
+  '10:00-11:00',
+  '11:00-12:00',
+  '12:00-13:00',
+  '13:00-14:00',
+  '14:00-15:00',
+  '15:00-16:00',
+  '16:00-17:00',
+  '17:00-18:00',
 ];
 
-const DOCTORS = ["Dr. S. Yadav", "Dr. R. Jha"];
+const DOCTORS = ['Dr. S. Yadav', 'Dr. R. Jha'];
 
 export default function Step2() {
   const { state, dispatch } = useBooking();
   const router = useRouter();
-
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const pickPrescription = async () => {
     const res = await DocumentPicker.getDocumentAsync({});
-    if (!res.canceled) {
-      dispatch({ prescriptionFile: res.assets[0] });
-    }
+    if (!res.canceled) dispatch({ prescriptionFile: res.assets[0] });
   };
 
   const setQuickDate = (days: number) => {
     const date = new Date();
     date.setDate(date.getDate() + days);
-    dispatch({ date: date.toISOString().split("T")[0] });
+    dispatch({ date: date.toISOString().split('T')[0] });
   };
 
   const handleCustomDate = (_: any, selectedDate?: Date) => {
     setShowDatePicker(false);
-    if (selectedDate) {
-      dispatch({ date: selectedDate.toISOString().split("T")[0] });
-    }
+    if (selectedDate)
+      dispatch({ date: selectedDate.toISOString().split('T')[0] });
   };
 
   const isValid =
@@ -47,31 +66,44 @@ export default function Step2() {
     (!state.hasPrescription || state.prescriptionFile);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Schedule</Text>
+    <ScrollView
+      style={s.root}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Step Indicator */}
+      <View style={s.stepRow}>
+        {[1, 2, 3].map((n) => (
+          <View key={n} style={s.stepItem}>
+            <View style={[s.stepCircle, n <= 2 && s.stepCircleActive]}>
+              <Text style={[s.stepNum, n <= 2 && s.stepNumActive]}>{n}</Text>
+            </View>
+            <Text style={[s.stepLabel, n <= 2 && s.stepLabelActive]}>
+              {n === 1 ? 'Details' : n === 2 ? 'Schedule' : 'Confirm'}
+            </Text>
+          </View>
+        ))}
+      </View>
 
-      {/* Quick Date Selectors */}
-      <View style={styles.quickDateRow}>
-        {["Today", "Tomorrow", "Day after Tomorrow"].map((label, idx) => {
+      <Text style={s.title}>Schedule Appointment</Text>
+
+      {/* ═══ Quick Date ═══ */}
+      <Text style={s.sectionLabel}>Select Date</Text>
+      <View style={s.quickDateRow}>
+        {['Today', 'Tomorrow', 'Day After'].map((label, idx) => {
           const date = new Date();
           date.setDate(date.getDate() + idx);
-          const iso = date.toISOString().split("T")[0];
-
+          const iso = date.toISOString().split('T')[0];
+          const active = state.date === iso;
           return (
             <TouchableOpacity
               key={label}
-              style={[
-                styles.quickDateBtn,
-                state.date === iso && styles.quickDateBtnActive,
-              ]}
+              style={[s.quickDateBtn, active && s.quickDateBtnActive]}
               onPress={() => setQuickDate(idx)}
+              activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.quickDateText,
-                  state.date === iso && styles.quickDateTextActive,
-                ]}
-              >
+              <Calendar size={14} color={active ? '#fff' : COLORS.grey400} />
+              <Text style={[s.quickDateText, active && s.quickDateTextActive]}>
                 {label}
               </Text>
             </TouchableOpacity>
@@ -79,14 +111,16 @@ export default function Step2() {
         })}
       </View>
 
-      {/* Date Picker */}
       <TouchableOpacity
-        style={styles.datePickerBtn}
+        style={s.datePickerBtn}
         onPress={() => setShowDatePicker(true)}
+        activeOpacity={0.7}
       >
-        <Text>{state.date || "Select Date"}</Text>
+        <Calendar size={16} color={COLORS.grey400} />
+        <Text style={s.datePickerText}>
+          {state.date || 'Choose custom date...'}
+        </Text>
       </TouchableOpacity>
-
       {showDatePicker && (
         <DateTimePicker
           value={state.date ? new Date(state.date) : new Date()}
@@ -95,20 +129,103 @@ export default function Step2() {
         />
       )}
 
-      {/* Time Slots */}
+      {/* ═══ Time Slots ═══ */}
       {state.date && (
-        <View style={styles.timeSlotGrid}>
-          {TIME_SLOTS.map((slot) => {
-            const isSelected = state.timeSlot === slot;
+        <>
+          <Text style={s.sectionLabel}>Select Time Slot</Text>
+          <View style={s.timeGrid}>
+            {TIME_SLOTS.map((slot) => {
+              const active = state.timeSlot === slot;
+              return (
+                <TouchableOpacity
+                  key={slot}
+                  style={[s.timeSlot, active && s.timeSlotActive]}
+                  onPress={() => dispatch({ timeSlot: slot })}
+                  activeOpacity={0.7}
+                >
+                  <Clock size={12} color={active ? '#fff' : COLORS.primary} />
+                  <Text
+                    style={[s.timeSlotText, active && s.timeSlotTextActive]}
+                  >
+                    {slot}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      )}
 
+      {/* ═══ Prescription ═══ */}
+      <View style={s.checkboxRow}>
+        <Checkbox.Android
+          status={state.hasPrescription ? 'checked' : 'unchecked'}
+          onPress={() => dispatch({ hasPrescription: !state.hasPrescription })}
+          color={COLORS.primary}
+        />
+        <Text style={s.checkboxLabel}>I have a prescription</Text>
+      </View>
+
+      {state.hasPrescription && (
+        <View style={s.uploadSection}>
+          {!state.prescriptionFile ? (
+            <TouchableOpacity
+              style={s.uploadBtn}
+              onPress={pickPrescription}
+              activeOpacity={0.7}
+            >
+              <Upload size={18} color={COLORS.primary} />
+              <Text style={s.uploadBtnText}>Upload Prescription</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={s.fileCard}>
+              <FileText size={18} color={COLORS.primary} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={s.fileLabel}>Uploaded</Text>
+                <Text style={s.fileName} numberOfLines={1}>
+                  {state.prescriptionFile.name}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={s.fileRemove}
+                onPress={() => dispatch({ prescriptionFile: null })}
+              >
+                <X size={14} color={COLORS.error} />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* ═══ Doctor ═══ */}
+      <View style={s.checkboxRow}>
+        <Checkbox.Android
+          status={state.prcDoctor ? 'checked' : 'unchecked'}
+          onPress={() =>
+            dispatch({ prcDoctor: state.prcDoctor ? '' : DOCTORS[0] })
+          }
+          color={COLORS.primary}
+        />
+        <Text style={s.checkboxLabel}>Post Report Consultation</Text>
+      </View>
+
+      {state.prcDoctor && (
+        <View style={s.doctorList}>
+          {DOCTORS.map((d) => {
+            const active = state.prcDoctor === d;
             return (
               <TouchableOpacity
-                key={slot}
-                style={[styles.slot, isSelected && styles.slotActive]}
-                onPress={() => dispatch({ timeSlot: slot })}
+                key={d}
+                style={[s.doctorCard, active && s.doctorCardActive]}
+                onPress={() => dispatch({ prcDoctor: d })}
+                activeOpacity={0.7}
               >
-                <Text style={{ color: isSelected ? "#fff" : "#008080" }}>
-                  {slot}
+                <Stethoscope
+                  size={16}
+                  color={active ? '#fff' : COLORS.primary}
+                />
+                <Text style={[s.doctorText, active && s.doctorTextActive]}>
+                  {d}
                 </Text>
               </TouchableOpacity>
             );
@@ -116,163 +233,216 @@ export default function Step2() {
         </View>
       )}
 
-      {/* Prescription Checkbox */}
-      <Checkbox.Item
-        label="I have a prescription"
-        status={state.hasPrescription ? "checked" : "unchecked"}
-        onPress={() => dispatch({ hasPrescription: !state.hasPrescription })}
-      />
-
-      {/* ✅ Prescription Upload UI (ONLY ADDITION) */}
-      {state.hasPrescription && (
-        <View style={styles.prescriptionBox}>
-          {!state.prescriptionFile ? (
-            <PrimaryButton label="Upload Prescription" onPress={pickPrescription} />
-          ) : (
-            <View style={styles.uploadedFileRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fileLabel}>Uploaded Prescription</Text>
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {state.prescriptionFile.name}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.removeBtn}
-                onPress={() => dispatch({ prescriptionFile: null })}
-              >
-                <Text style={styles.removeText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Post Report Consultation */}
-      <Checkbox.Item
-        label="Post Report Consultation"
-        status={!!state.prcDoctor ? "checked" : "unchecked"}
-        onPress={() =>
-          dispatch({ prcDoctor: state.prcDoctor ? "" : DOCTORS[0] })
-        }
-      />
-
-      {state.prcDoctor && (
-        <View style={styles.doctorList}>
-          {DOCTORS.map((d) => (
-            <TouchableOpacity
-              key={d}
-              style={[
-                styles.doctorCard,
-                state.prcDoctor === d && styles.doctorCardActive,
-              ]}
-              onPress={() => dispatch({ prcDoctor: d })}
-            >
-              <Text style={{ color: state.prcDoctor === d ? "#fff" : "#008080" }}>
-                {d}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Buttons */}
-      <View style={styles.buttonColumn}>
-        <TouchableOpacity style={styles.prevBtn} onPress={() => router.back()}>
-          <Text style={styles.prevBtnText}>Previous</Text>
-        </TouchableOpacity>
-
+      {/* ═══ Navigation ═══ */}
+      <View style={s.navRow}>
         <TouchableOpacity
-          style={[styles.nextBtn, !isValid && { opacity: 0.4 }]}
-          disabled={!isValid}
-          onPress={() => router.push("/booking/step3")}
+          style={s.prevBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
         >
-          <Text style={styles.nextBtnText}>Next</Text>
+          <ChevronLeft size={18} color={COLORS.primary} />
+          <Text style={s.prevBtnText}>Previous</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.nextBtn, !isValid && { opacity: 0.4 }]}
+          disabled={!isValid}
+          activeOpacity={0.8}
+          onPress={() => router.push('/booking/step3')}
+        >
+          <Text style={s.nextBtnText}>Next</Text>
+          <ChevronRight size={18} color="#fff" />
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 20 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
+const s = StyleSheet.create({
+  root: { flex: 1, padding: 20, backgroundColor: '#F5F7FA' },
 
-  quickDateRow: { flexDirection: "row", marginBottom: 12 },
+  stepRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 32,
+    marginBottom: 24,
+  },
+  stepItem: { alignItems: 'center' },
+  stepCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.grey200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  stepCircleActive: { backgroundColor: COLORS.primary },
+  stepNum: { fontSize: 14, fontWeight: '700', color: COLORS.grey400 },
+  stepNumActive: { color: '#fff' },
+  stepLabel: { fontSize: 11, fontWeight: '600', color: COLORS.grey400 },
+  stepLabelActive: { color: COLORS.primary },
+
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.grey800,
+    marginBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.grey500,
+    marginBottom: 8,
+    marginTop: 16,
+    marginLeft: 2,
+  },
+
+  /* Quick Date */
+  quickDateRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   quickDateBtn: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center",
-    marginHorizontal: 4,
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  quickDateBtnActive: { backgroundColor: "#008080" },
-  quickDateText: { fontWeight: "600", color: "#374151" },
-  quickDateTextActive: { color: "#fff" },
+  quickDateBtnActive: { backgroundColor: COLORS.primary },
+  quickDateText: { fontWeight: '600', fontSize: 12, color: COLORS.grey500 },
+  quickDateTextActive: { color: '#fff' },
 
   datePickerBtn: {
-    backgroundColor: "#fff",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
     padding: 14,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 14,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
+  datePickerText: { fontSize: 14, color: COLORS.grey500 },
 
-  timeSlotGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  slot: {
-    borderWidth: 1,
-    borderColor: "#008080",
+  /* Time Slots */
+  timeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  timeSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    width: '48%',
     paddingVertical: 12,
     borderRadius: 12,
-    width: "48%",
-    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.primaryLight,
+    backgroundColor: '#fff',
   },
-  slotActive: { backgroundColor: "#008080" },
+  timeSlotActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  timeSlotText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  timeSlotTextActive: { color: '#fff' },
 
-  prescriptionBox: { marginBottom: 12 },
-  uploadedFileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
+  /* Checkbox */
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
+  checkboxLabel: { fontSize: 15, fontWeight: '600', color: COLORS.grey700 },
+
+  /* Upload */
+  uploadSection: { marginBottom: 8, marginLeft: 8 },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.primaryLight,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+  },
+  uploadBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
+  fileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: COLORS.grey200,
   },
-  fileLabel: { fontSize: 12, color: "#6B7280" },
-  fileName: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  removeBtn: {
-    backgroundColor: "#FEE2E2",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginLeft: 12,
+  fileLabel: { fontSize: 11, color: COLORS.grey400 },
+  fileName: { fontSize: 14, fontWeight: '600', color: COLORS.grey800 },
+  fileRemove: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.errorLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
-  removeText: { color: "#DC2626", fontWeight: "600" },
 
-  doctorList: { marginVertical: 12 },
+  /* Doctor */
+  doctorList: { gap: 8, marginTop: 8, marginLeft: 8 },
   doctorCard: {
-    backgroundColor: "#fff",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#fff',
     padding: 14,
-    borderRadius: 12,
-    marginBottom: 8,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  doctorCardActive: { backgroundColor: "#008080" },
+  doctorCardActive: { backgroundColor: COLORS.primary },
+  doctorText: { fontSize: 14, fontWeight: '600', color: COLORS.primary },
+  doctorTextActive: { color: '#fff' },
 
-  buttonColumn: { marginTop: 24, gap: 12 },
+  /* Nav */
+  navRow: { flexDirection: 'row', gap: 12, marginTop: 28 },
   prevBtn: {
-    borderWidth: 1,
-    borderColor: "#008080",
-    padding: 16,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
     borderRadius: 16,
-    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    backgroundColor: '#fff',
   },
-  prevBtnText: { color: "#008080", fontWeight: "600" },
+  prevBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: 15 },
   nextBtn: {
-    backgroundColor: "#008080",
-    padding: 16,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
     borderRadius: 16,
-    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  nextBtnText: { color: "#fff", fontWeight: "600" },
+  nextBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

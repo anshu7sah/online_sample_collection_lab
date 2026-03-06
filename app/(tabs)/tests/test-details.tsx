@@ -1,194 +1,340 @@
-import React from "react";
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ShoppingCart, Check } from "lucide-react-native";
-import { useLocalSearchParams } from "expo-router";
-import { useApp } from "@/contexts/AppContext";
-import { useSingleTest } from "@/hooks/useSingleTest";
+  ActivityIndicator,
+  Dimensions,
+} from 'react-native';
+import {
+  ShoppingCart,
+  Check,
+  Beaker,
+  Clock,
+  Tag,
+  FileText,
+  AlertCircle,
+  Droplets,
+} from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useApp } from '@/contexts/AppContext';
+import { useSingleTest } from '@/hooks/useSingleTest';
+import { COLORS } from '@/lib/theme';
+import Toast from 'react-native-toast-message';
 
 export default function TestDetailsScreen() {
   const { id } = useLocalSearchParams();
   const testId = Number(id);
 
-  const { state, dispatch } = useApp();
+  const { dispatch, state } = useApp();
+  const [isAdding, setIsAdding] = React.useState(false);
   const { data: test, isLoading, isError } = useSingleTest(testId);
 
-  const addToCart = () => {
-    if (!test) return;
+  const isInCart = state.cart.some(
+    (item: any) => item.id === testId && item.type === 'test',
+  );
+
+  const addToCart = async () => {
+    if (!test || isInCart || isAdding) return;
+
+    setIsAdding(true);
+    // Simulate delay
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     dispatch({
-      type: "ADD_TO_CART",
+      type: 'ADD_TO_CART',
       payload: {
         id: test.id,
         name: test.testName,
         price: test.amount,
-        type: "test",
+        type: 'test',
       },
     });
 
-    Alert.alert("Added to Cart", `${test.testName} has been added to your cart.`);
+    setIsAdding(false);
+
+    Toast.show({
+      type: 'success',
+      text1: 'Added to cart',
+      text2: test.testName,
+      visibilityTime: 1800,
+    });
   };
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.loadingText}>Loading test details...</Text>
-      </SafeAreaView>
+      <View style={s.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={s.loadingText}>Loading test details...</Text>
+      </View>
     );
   }
 
   if (isError || !test) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text style={styles.errorText}>Test details not found.</Text>
-      </SafeAreaView>
+      <View style={s.center}>
+        <AlertCircle size={48} color={COLORS.error} />
+        <Text style={s.errorText}>Test details not found.</Text>
+      </View>
     );
   }
 
+  const details = [
+    {
+      icon: Tag,
+      label: 'Test Code',
+      value: test.testCode,
+      color: COLORS.primary,
+      bg: COLORS.primaryLight,
+    },
+    {
+      icon: Beaker,
+      label: 'Method',
+      value: test.methodName,
+      color: '#6366F1',
+      bg: '#E0E7FF',
+    },
+    {
+      icon: Droplets,
+      label: 'Specimen',
+      value: `${test.specimen} (${test.specimenVolume}, ${test.container})`,
+      color: '#DC2626',
+      bg: '#FEE2E2',
+    },
+    {
+      icon: Clock,
+      label: 'Reported',
+      value: test.reported,
+      color: '#F59E0B',
+      bg: '#FEF3C7',
+    },
+  ];
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.testName}>{test.testName}</Text>
-          <Text style={styles.price}>NPR {test.amount}</Text>
+    <View style={s.root}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        {/* ═══ Header Card ═══ */}
+        <View style={s.headerCard}>
+          <View style={s.deptBadge}>
+            <Text style={s.deptBadgeText}>{test.department}</Text>
+          </View>
+          <Text style={s.testName}>{test.testName}</Text>
+          <Text style={s.price}>NPR {test.amount}</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Department</Text>
-          <Text style={styles.description}>{test.department}</Text>
+        {/* ═══ Details ═══ */}
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Test Information</Text>
+          {details.map((d, i) => {
+            const Icon = d.icon;
+            return (
+              <View key={i} style={s.detailRow}>
+                <View style={[s.detailIcon, { backgroundColor: d.bg }]}>
+                  <Icon size={16} color={d.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.detailLabel}>{d.label}</Text>
+                  <Text style={s.detailValue}>{d.value}</Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Test Details</Text>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Test Code:</Text>
-            <Text style={styles.parameterText}>{test.testCode}</Text>
-          </View>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Method:</Text>
-            <Text style={styles.parameterText}>{test.methodName}</Text>
-          </View>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Specimen:</Text>
-            <Text style={styles.parameterText}>
-              {test.specimen} ({test.specimenVolume}, {test.container})
-            </Text>
-          </View>
-          <View style={styles.parameterItem}>
-            <Text style={styles.parameterLabel}>Reported:</Text>
-            <Text style={styles.parameterText}>{test.reported}</Text>
-          </View>
-          {test.specialInstruction && (
-            <View style={styles.parameterItem}>
-              <Text style={styles.parameterLabel}>Special Instructions:</Text>
-              <Text style={styles.parameterText}>{test.specialInstruction}</Text>
+        {/* ═══ Special Instructions ═══ */}
+        {test.specialInstruction && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Special Instructions</Text>
+            <View style={s.instructionBox}>
+              <AlertCircle size={16} color={COLORS.secondary} />
+              <Text style={s.instructionText}>{test.specialInstruction}</Text>
             </View>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <View style={styles.footerPricing}>
-          <Text style={styles.footerPriceLabel}>Price</Text>
-          <Text style={styles.footerPrice}>NPR {test.amount}</Text>
+      {/* ═══ Footer ═══ */}
+      <View style={s.footer}>
+        <View>
+          <Text style={s.footerLabel}>Price</Text>
+          <Text style={s.footerPrice}>NPR {test.amount}</Text>
         </View>
-        <TouchableOpacity style={styles.addToCartButton} onPress={addToCart}>
-          <ShoppingCart size={20} color="#FFFFFF" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+        <TouchableOpacity
+          style={[s.addBtn, (isInCart || isAdding) && s.addBtnDisabled]}
+          activeOpacity={0.8}
+          onPress={addToCart}
+          disabled={isInCart || isAdding}
+        >
+          {isAdding ? (
+            <>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={s.addBtnText}>Adding...</Text>
+            </>
+          ) : isInCart ? (
+            <>
+              <Check size={18} color="#fff" />
+              <Text style={s.addBtnText}>In Cart</Text>
+            </>
+          ) : (
+            <>
+              <ShoppingCart size={18} color="#fff" />
+              <Text style={s.addBtnText}>Add to Cart</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
-/* ---------------- STYLES ---------------- */
-const styles = StyleSheet.create({
-  container: {
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#F5F7FA' },
+  center: {
     flex: 1,
-    backgroundColor: "#F0FDFD",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
   },
-  content: { flex: 1 },
-  header: {
-    backgroundColor: "#FFFFFF",
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.grey400,
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  errorText: {
+    fontSize: 16,
+    color: COLORS.error,
+    marginTop: 12,
+    fontWeight: '600',
+  },
+
+  /* Header Card */
+  headerCard: {
+    backgroundColor: '#fff',
+    margin: 20,
     padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  deptBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  deptBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
+    letterSpacing: 0.3,
   },
   testName: {
     fontSize: 22,
-    fontWeight: "700",
-    color: "#1F2937",
+    fontWeight: '800',
+    color: COLORS.grey800,
     marginBottom: 8,
   },
-  price: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#16A34A", // changed to green
+  price: { fontSize: 22, fontWeight: '800', color: COLORS.secondary },
+
+  /* Section */
+  section: { marginHorizontal: 20, marginBottom: 16 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.grey800,
+    marginBottom: 14,
   },
-  section: {
-    backgroundColor: "#FFFFFF",
-    marginTop: 8,
-    padding: 20,
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    shadowColor: "#000",
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#1F2937",
-    marginBottom: 12,
+  detailIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
   },
-  description: { fontSize: 14, color: "#6B7280", lineHeight: 20 },
-  parameterItem: {
-    flexDirection: "row",
-    marginBottom: 8,
-    flexWrap: "wrap",
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.grey400,
+    letterSpacing: 0.3,
+    marginBottom: 2,
   },
-  parameterLabel: {
-    fontWeight: "600",
-    color: "#1F2937",
-    marginRight: 4,
+  detailValue: { fontSize: 14, fontWeight: '600', color: COLORS.grey800 },
+
+  /* Instructions */
+  instructionBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FEF3C7',
+    padding: 14,
+    borderRadius: 14,
   },
-  parameterText: { color: "#1F2937", fontSize: 14 },
+  instructionText: { flex: 1, fontSize: 14, color: '#92400E', lineHeight: 20 },
+
+  /* Footer */
   footer: {
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-  },
-  footerPricing: { flex: 1 },
-  footerPriceLabel: { fontSize: 12, color: "#6B7280", marginBottom: 2 },
-  footerPrice: { fontSize: 18, fontWeight: "700", color: "#16A34A" }, // green
-  addToCartButton: {
-    backgroundColor: "#16A34A", // green
-    flexDirection: "row",
-    alignItems: "center",
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.grey100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  addToCartText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginLeft: 8,
+  footerLabel: { fontSize: 12, color: COLORS.grey400, marginBottom: 2 },
+  footerPrice: { fontSize: 20, fontWeight: '800', color: COLORS.secondary },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { fontSize: 16, color: "#6B7280" },
-  errorText: { fontSize: 16, color: "red" },
+  addBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  addBtnDisabled: {
+    backgroundColor: COLORS.primaryMuted,
+    shadowOpacity: 0.1,
+  },
 });

@@ -35,6 +35,7 @@ interface AppState {
   // ✅ SAFE ADDITIONS
   token: string | null;
   authReady: boolean;
+  biometricsEnabled: boolean;
 }
 
 type AppAction =
@@ -44,7 +45,11 @@ type AppAction =
   | { type: 'REMOVE_FROM_CART'; payload: number }
   | { type: 'CLEAR_CART' }
   | { type: 'RESTORE_STATE'; payload: AppState }
-  | { type: 'RESTORE_AUTH'; payload: { token: string | null } };
+  | {
+      type: 'RESTORE_AUTH';
+      payload: { token: string | null; biometricsEnabled?: boolean };
+    }
+  | { type: 'SET_BIOMETRICS'; payload: boolean };
 
 // ========================
 // Initial State
@@ -56,6 +61,7 @@ const initialState: AppState = {
 
   token: null,
   authReady: false,
+  biometricsEnabled: false,
 };
 
 // ========================
@@ -70,7 +76,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
         token: action.payload.token,
         isAuthenticated: !!action.payload.token,
         authReady: true,
+        biometricsEnabled: action.payload.biometricsEnabled ?? false,
       };
+
+    case 'SET_BIOMETRICS': {
+      const updated = { ...state, biometricsEnabled: action.payload };
+      saveStateToStorage(updated);
+      return updated;
+    }
 
     case 'SET_USER': {
       const updated = {
@@ -165,29 +178,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ✅ BOOTSTRAP AUTH (CRITICAL FIX)
   useEffect(() => {
-  const bootstrapAuth = async () => {
-    const token = await AsyncStorage.getItem('token');
+    const bootstrapAuth = async () => {
+      const token = await AsyncStorage.getItem('token');
 
-    // Restore saved state first
-    const restored = await loadStateFromStorage();
-    if (restored) {
-      dispatch({ type: 'RESTORE_STATE', payload: restored });
-    }
+      // Restore saved state first
+      const restored = await loadStateFromStorage();
+      if (restored) {
+        dispatch({ type: 'RESTORE_STATE', payload: restored });
+      }
 
-    // Then restore auth token separately
-    if (token) {
-      api.defaults.headers.common.Authorization = `Bearer ${token}`;
-    }
+      // Then restore auth token separately
+      if (token) {
+        api.defaults.headers.common.Authorization = `Bearer ${token}`;
+      }
 
-    dispatch({
-      type: 'RESTORE_AUTH',
-      payload: { token },
-    });
-  };
+      const biometricsStr = await AsyncStorage.getItem('biometricsEnabled');
+      const biometricsEnabled = biometricsStr === 'true';
 
-  bootstrapAuth();
-}, []);
+      dispatch({
+        type: 'RESTORE_AUTH',
+        payload: { token, biometricsEnabled },
+      });
+    };
 
+    bootstrapAuth();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

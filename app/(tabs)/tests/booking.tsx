@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,45 +7,37 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
-} from "react-native";
-import PagerView from "react-native-pager-view";
+  ActivityIndicator,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-} from "react-native-reanimated";
-import MapView, { Marker } from "react-native-maps";
-import * as Location from "expo-location";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Checkbox, RadioButton } from "react-native-paper";
-import Toast from "react-native-toast-message";
-import { useRouter } from "expo-router";
+} from 'react-native-reanimated';
+import MapView, { Marker } from 'react-native-maps';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Checkbox, RadioButton } from 'react-native-paper';
+import Toast from 'react-native-toast-message';
+import { useRouter } from 'expo-router';
+import { COLORS } from '@/lib/theme';
+import { useGPSLocation } from '@/hooks/useGPSLocation';
 
-const { width } = Dimensions.get("window");
+const { width } = Dimensions.get('window');
 
 /* ================= CONSTANTS ================= */
 
-const COLORS = {
-  teal: "#008080",
-  gold: "#FFB800",
-  grey: "#F5F5F5",
-  dark: "#6B7280",
-  white: "#FFFFFF",
-  blue: "#3B82F6",
-};
-
 const TIME_SLOTS = [
-  "12:00 - 13:00",
-  "13:00 - 14:00",
-  "14:00 - 15:00",
-  "15:00 - 16:00",
-  "16:00 - 17:00",
-  "17:00 - 18:00",
-  "18:00 - 19:00",
-  "21:00 - 22:00",
+  '12:00 - 13:00',
+  '13:00 - 14:00',
+  '14:00 - 15:00',
+  '15:00 - 16:00',
+  '16:00 - 17:00',
+  '17:00 - 18:00',
+  '18:00 - 19:00',
+  '21:00 - 22:00',
 ];
 
-const DOCTORS = ["Dr. S. Yadav", "Dr. R. Jha", "Dr. A. Mishra"];
+const DOCTORS = ['Dr. S. Yadav', 'Dr. R. Jha', 'Dr. A. Mishra'];
 
 /* ================= UTILS ================= */
 
@@ -56,44 +48,65 @@ const calculateAge = (dob: Date) =>
 
 export default function BookingScreen() {
   const router = useRouter();
-  const pagerRef = useRef<PagerView>(null);
+  const pagerRef = useRef<ScrollView>(null);
   const step = useSharedValue(0);
 
-  const [profile, setProfile] = useState<"SELF" | "OTHER">("SELF");
+  const [profile, setProfile] = useState<'SELF' | 'OTHER'>('SELF');
   const [dob, setDob] = useState<Date | null>(null);
   const [showDob, setShowDob] = useState(false);
 
   const [location, setLocation] = useState<any>(null);
   const [manualLocation, setManualLocation] = useState(false);
+  const gps = useGPSLocation();
 
   const [availability, setAvailability] = useState<
-    "TODAY" | "TOMORROW" | "DAY_AFTER" | "CALENDAR" | null
+    'TODAY' | 'TOMORROW' | 'DAY_AFTER' | 'CALENDAR' | null
   >(null);
   const [date, setDate] = useState<Date | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
 
-  const [timeSlot, setTimeSlot] = useState("");
+  const [timeSlot, setTimeSlot] = useState('');
   const [hasPrescription, setHasPrescription] = useState(false);
 
   const [prc, setPrc] = useState(false);
-  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState('');
 
   const [form, setForm] = useState({
-    name: "Anshu Sah",
-    age: "23",
-    mobile: "98XXXXXXXX",
-    address: "",
+    name: 'Anshu Sah',
+    age: '23',
+    mobile: '98XXXXXXXX',
+    address: '',
   });
+
+  /* ── Sync GPS result to local state ── */
+  useEffect(() => {
+    if (gps.location) {
+      setLocation(gps.location);
+    }
+    if (gps.address) {
+      setForm((prev) => ({ ...prev, address: gps.address }));
+    }
+  }, [gps.location, gps.address]);
+
+  useEffect(() => {
+    if (gps.error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Location Error',
+        text2: gps.error,
+      });
+    }
+  }, [gps.error]);
 
   /* ================= NAV ================= */
 
   const next = () => {
-    pagerRef.current?.setPage(step.value + 1);
+    pagerRef.current?.scrollTo({ x: (step.value + 1) * width, animated: true });
     step.value += 1;
   };
 
   const back = () => {
-    pagerRef.current?.setPage(step.value - 1);
+    pagerRef.current?.scrollTo({ x: (step.value - 1) * width, animated: true });
     step.value -= 1;
   };
 
@@ -106,11 +119,8 @@ export default function BookingScreen() {
   /* ================= LOCATION ================= */
 
   const getCurrentLocation = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return;
-    const loc = await Location.getCurrentPositionAsync({});
-    setLocation(loc.coords);
     setManualLocation(false);
+    await gps.fetchLocation();
   };
 
   /* ================= DATE HANDLING ================= */
@@ -120,13 +130,12 @@ export default function BookingScreen() {
     d.setDate(d.getDate() + days);
     setDate(d);
     setAvailability(
-      days === 0 ? "TODAY" : days === 1 ? "TOMORROW" : "DAY_AFTER"
+      days === 0 ? 'TODAY' : days === 1 ? 'TOMORROW' : 'DAY_AFTER',
     );
   };
 
-
   return (
-    <View style={{ flex: 1, backgroundColor: COLORS.grey }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.grey100 }}>
       {/* ===== Step Indicator ===== */}
       <View style={styles.stepper}>
         <View style={styles.stepLine}>
@@ -145,31 +154,39 @@ export default function BookingScreen() {
         ))}
       </View>
 
-      <PagerView ref={pagerRef} style={{ flex: 1 }} scrollEnabled={false}>
+      <ScrollView
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+        style={{ flex: 1 }}
+      >
         {/* ================= STEP 1 ================= */}
-        <ScrollView key="1" contentContainerStyle={styles.page}>
+        <ScrollView
+          key="1"
+          style={{ width }}
+          contentContainerStyle={styles.page}
+        >
           <Text style={styles.title}>Personal Details</Text>
 
           <View style={styles.toggleRow}>
-            {["SELF", "OTHER"].map((p) => (
+            {['SELF', 'OTHER'].map((p) => (
               <TouchableOpacity
                 key={p}
                 onPress={() => setProfile(p as any)}
-                style={[
-                  styles.toggle,
-                  profile === p && styles.toggleActive,
-                ]}
+                style={[styles.toggle, profile === p && styles.toggleActive]}
               >
-                <Text style={{ color: profile === p ? "#fff" : "#000" }}>
-                  {p === "SELF" ? "For Self" : "For Other"}
+                <Text style={{ color: profile === p ? '#fff' : '#000' }}>
+                  {p === 'SELF' ? 'For Self' : 'For Other'}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <TextInput
-            editable={profile === "OTHER"}
-            style={[styles.input, profile === "SELF" && styles.disabled]}
+            editable={profile === 'OTHER'}
+            style={[styles.input, profile === 'SELF' && styles.disabled]}
             value={form.name}
             placeholder="Name"
           />
@@ -179,7 +196,7 @@ export default function BookingScreen() {
               editable={false}
               style={styles.input}
               placeholder="Select DOB"
-              value={dob ? dob.toDateString() : ""}
+              value={dob ? dob.toDateString() : ''}
             />
           </TouchableOpacity>
 
@@ -228,23 +245,32 @@ export default function BookingScreen() {
               <Marker
                 draggable={manualLocation}
                 coordinate={location}
-                onDragEnd={(e) =>
-                  setLocation(e.nativeEvent.coordinate)
-                }
+                onDragEnd={(e) => setLocation(e.nativeEvent.coordinate)}
               />
             )}
           </MapView>
 
           <View style={styles.buttonRow}>
             <OutlineButton
-              label="Use Current Location"
+              label={gps.loading ? 'Fetching...' : 'Use Current Location'}
               onPress={getCurrentLocation}
+              loading={gps.loading}
             />
             <OutlineButton
               label="Set Manually"
               onPress={() => setManualLocation(true)}
             />
           </View>
+
+          {location && (
+            <View style={styles.locConfirm}>
+              <Text style={styles.locConfirmText}>
+                {form.address
+                  ? `📍 ${form.address}`
+                  : `📍 Location set (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`}
+              </Text>
+            </View>
+          )}
 
           <PrimaryButton
             label="Next"
@@ -254,22 +280,22 @@ export default function BookingScreen() {
         </ScrollView>
 
         {/* ================= STEP 2 ================= */}
-        <ScrollView key="2" contentContainerStyle={styles.page}>
+        <ScrollView
+          key="2"
+          style={{ width }}
+          contentContainerStyle={styles.page}
+        >
           <Text style={styles.title}>Availability</Text>
 
           {[
-            ["TODAY", "Today", () => selectQuickDate(0)],
-            ["TOMORROW", "Tomorrow", () => selectQuickDate(1)],
-            ["DAY_AFTER", "Day after Tomorrow", () => selectQuickDate(2)],
+            ['TODAY', 'Today', () => selectQuickDate(0)],
+            ['TOMORROW', 'Tomorrow', () => selectQuickDate(1)],
+            ['DAY_AFTER', 'Day after Tomorrow', () => selectQuickDate(2)],
           ].map(([k, label, fn]: any) => (
-            <TouchableOpacity
-              key={k}
-              style={styles.radioRow}
-              onPress={fn}
-            >
+            <TouchableOpacity key={k} style={styles.radioRow} onPress={fn}>
               <RadioButton
                 value={k}
-                status={availability === k ? "checked" : "unchecked"}
+                status={availability === k ? 'checked' : 'unchecked'}
               />
               <Text>{label}</Text>
             </TouchableOpacity>
@@ -278,11 +304,11 @@ export default function BookingScreen() {
           <TouchableOpacity
             style={styles.calendarBox}
             onPress={() => {
-              setAvailability("CALENDAR");
+              setAvailability('CALENDAR');
               setShowCalendar(true);
             }}
           >
-            <Text>{date ? date.toDateString() : "Select Date"}</Text>
+            <Text>{date ? date.toDateString() : 'Select Date'}</Text>
           </TouchableOpacity>
 
           {showCalendar && (
@@ -304,15 +330,11 @@ export default function BookingScreen() {
                   <TouchableOpacity
                     key={t}
                     onPress={() => setTimeSlot(t)}
-                    style={[
-                      styles.slot,
-                      timeSlot === t && styles.slotActive,
-                    ]}
+                    style={[styles.slot, timeSlot === t && styles.slotActive]}
                   >
                     <Text
                       style={{
-                        color:
-                          timeSlot === t ? "#fff" : COLORS.blue,
+                        color: timeSlot === t ? '#fff' : COLORS.primary,
                       }}
                     >
                       {t}
@@ -325,7 +347,7 @@ export default function BookingScreen() {
 
           <View style={styles.checkboxRow}>
             <Checkbox
-              status={hasPrescription ? "checked" : "unchecked"}
+              status={hasPrescription ? 'checked' : 'unchecked'}
               onPress={() => setHasPrescription(!hasPrescription)}
             />
             <Text>I have a prescription</Text>
@@ -333,7 +355,7 @@ export default function BookingScreen() {
 
           <View style={styles.checkboxRow}>
             <Checkbox
-              status={prc ? "checked" : "unchecked"}
+              status={prc ? 'checked' : 'unchecked'}
               onPress={() => setPrc(!prc)}
             />
             <Text>Post Report Consultation (PRC)</Text>
@@ -356,16 +378,16 @@ export default function BookingScreen() {
 
           <Footer>
             <OutlineButton label="Previous" onPress={back} />
-            <PrimaryButton
-              label="Next"
-              disabled={!timeSlot}
-              onPress={next}
-            />
+            <PrimaryButton label="Next" disabled={!timeSlot} onPress={next} />
           </Footer>
         </ScrollView>
 
         {/* ================= STEP 3 ================= */}
-        <ScrollView key="3" contentContainerStyle={styles.page}>
+        <ScrollView
+          key="3"
+          style={{ width }}
+          contentContainerStyle={styles.page}
+        >
           <Text style={styles.title}>Payment</Text>
 
           <View style={styles.card}>
@@ -383,15 +405,15 @@ export default function BookingScreen() {
               label="Confirm Booking"
               onPress={() => {
                 Toast.show({
-                  type: "success",
-                  text1: "Booking Confirmed",
+                  type: 'success',
+                  text1: 'Booking Confirmed',
                 });
-                router.replace("/(tabs)");
+                router.replace('/(tabs)');
               }}
             />
           </Footer>
         </ScrollView>
-      </PagerView>
+      </ScrollView>
 
       <Toast />
     </View>
@@ -404,18 +426,22 @@ const PrimaryButton = ({ label, onPress, disabled }: any) => (
   <TouchableOpacity
     onPress={onPress}
     disabled={disabled}
-    style={[
-      styles.primary,
-      { opacity: disabled ? 0.4 : 1 },
-    ]}
+    style={[styles.primary, { opacity: disabled ? 0.4 : 1 }]}
   >
-    <Text style={{ color: "#fff", fontSize: 16 }}>{label}</Text>
+    <Text style={{ color: '#fff', fontSize: 16 }}>{label}</Text>
   </TouchableOpacity>
 );
 
-const OutlineButton = ({ label, onPress }: any) => (
-  <TouchableOpacity onPress={onPress} style={styles.outline}>
-    <Text style={{ color: COLORS.teal }}>{label}</Text>
+const OutlineButton = ({ label, onPress, loading }: any) => (
+  <TouchableOpacity onPress={onPress} style={styles.outline} disabled={loading}>
+    {loading ? (
+      <ActivityIndicator
+        size={14}
+        color={COLORS.primary}
+        style={{ marginRight: 6 }}
+      />
+    ) : null}
+    <Text style={{ color: COLORS.primary }}>{label}</Text>
   </TouchableOpacity>
 );
 
@@ -429,8 +455,8 @@ const PriceRow = ({ label, value, green, bold }: any) => (
     <Text
       style={{
         fontSize: 16,
-        fontWeight: bold ? "700" : "400",
-        color: green ? "green" : "#000",
+        fontWeight: bold ? '700' : '400',
+        color: green ? COLORS.success : '#000',
       }}
     >
       {value}
@@ -443,38 +469,38 @@ const PriceRow = ({ label, value, green, bold }: any) => (
 const styles = StyleSheet.create({
   page: { padding: 16, paddingLeft: 60 },
 
-  title: { fontSize: 20, fontWeight: "700", marginBottom: 16 },
+  title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
   subTitle: { marginVertical: 12, fontSize: 16 },
 
-  stepper: { position: "absolute", left: 24, top: 40 },
+  stepper: { position: 'absolute', left: 24, top: 40 },
   stepLine: {
-    position: "absolute",
+    position: 'absolute',
     width: 3,
     height: 240,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: COLORS.grey200,
     left: 8,
   },
   stepFill: {
     width: 3,
-    backgroundColor: COLORS.blue,
+    backgroundColor: COLORS.primary,
   },
   stepCircle: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: COLORS.blue,
-    backgroundColor: "#fff",
+    borderColor: COLORS.primary,
+    backgroundColor: '#fff',
     marginBottom: 68,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   stepCircleActive: {
-    backgroundColor: COLORS.blue,
+    backgroundColor: COLORS.primary,
   },
-  stepText: { color: "#fff", fontSize: 12 },
+  stepText: { color: '#fff', fontSize: 12 },
 
-  toggleRow: { flexDirection: "row", marginBottom: 16 },
+  toggleRow: { flexDirection: 'row', marginBottom: 16 },
   toggle: {
     padding: 10,
     borderWidth: 1,
@@ -482,12 +508,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   toggleActive: {
-    backgroundColor: COLORS.teal,
-    borderColor: COLORS.teal,
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
 
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 14,
     borderRadius: 10,
     marginBottom: 12,
@@ -497,92 +523,104 @@ const styles = StyleSheet.create({
   map: { height: 160, borderRadius: 12, marginVertical: 12 },
 
   buttonRow: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 10,
     marginBottom: 16,
   },
 
-  radioRow: { flexDirection: "row", alignItems: "center" },
+  locConfirm: {
+    backgroundColor: COLORS.successLight,
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+  },
+  locConfirmText: {
+    fontSize: 13,
+    color: COLORS.success,
+    fontWeight: '600',
+  },
+
+  radioRow: { flexDirection: 'row', alignItems: 'center' },
 
   calendarBox: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 14,
     borderRadius: 10,
     marginVertical: 12,
   },
 
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   slot: {
     borderWidth: 1,
-    borderColor: COLORS.blue,
+    borderColor: COLORS.primary,
     padding: 10,
     borderRadius: 8,
     width: width / 2 - 60,
-    alignItems: "center",
+    alignItems: 'center',
   },
-  slotActive: { backgroundColor: COLORS.blue },
+  slotActive: { backgroundColor: COLORS.primary },
 
   checkboxRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 14,
   },
 
   doctor: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
     padding: 12,
     borderRadius: 10,
     marginVertical: 6,
   },
   doctorActive: {
     borderWidth: 2,
-    borderColor: COLORS.teal,
+    borderColor: COLORS.primary,
   },
   leftBar: {
     width: 4,
-    height: "100%",
-    backgroundColor: COLORS.gold,
+    height: '100%',
+    backgroundColor: COLORS.secondary,
     marginRight: 8,
   },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
   },
-  testName: { fontSize: 17, fontWeight: "600" },
-  discount: { color: "green", marginTop: 6 },
+  testName: { fontSize: 17, fontWeight: '600' },
+  discount: { color: COLORS.secondary, marginTop: 6 },
 
   priceRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginVertical: 8,
   },
 
   footer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginTop: 24,
   },
 
   primary: {
-    backgroundColor: COLORS.blue,
+    backgroundColor: COLORS.primary,
     padding: 14,
     borderRadius: 14,
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     marginLeft: 10,
   },
   outline: {
     borderWidth: 1,
-    borderColor: COLORS.blue,
+    borderColor: COLORS.primary,
     padding: 14,
     borderRadius: 14,
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     marginRight: 10,
   },
 });
