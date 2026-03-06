@@ -1,6 +1,6 @@
 # API Documentation - Sukra Polyclinic
 
-This document outlines the required backend API endpoints for the Online Sample Collection Lab (Sukra Polyclinic).
+This document outlines the required backend API endpoints for the Online Sample Collection Lab (Sukra Polyclinic), including detailed request parameters and response data types as extracted from the frontend usage.
 
 ## Base URL
 
@@ -79,9 +79,19 @@ Initialize user profile for new users.
 
 Retrieve information about the currently logged-in user.
 
-- **Endpoint**: `GET /current-user` (or `/auth/current-user`)
+- **Endpoint**: `GET /auth/current`
 - **Headers**: `Authorization: Bearer <token>`
-- **Response**: User object.
+- **Response**:
+  ```json
+  {
+    "user": {
+      "id": "number",
+      "name": "string",
+      "mobile": "string",
+      "dob": "string"
+    }
+  }
+  ```
 
 ---
 
@@ -95,25 +105,53 @@ Retrieve a paginated list of individual lab tests.
 - **Query Params**:
   - `page`: number (default: 1)
   - `limit`: number (default: 50)
-  - `testName`: string (optional search filter)
-  - `category`: string (optional filter)
+  - _Optional Filters_:
+    - `department`: string
+    - `testCode`: string
+    - `testName`: string
+    - `methodName`: string
+    - `specimen`: string
+    - `specimenVolume`: string
+    - `container`: string
+    - `reported`: string
+    - `minAmount`: number
+    - `maxAmount`: number
+    - `specialInstruction`: string
 - **Response**:
   ```json
   {
     "tests": [
       {
         "id": "number",
+        "department": "string",
+        "testCode": "string",
         "testName": "string",
         "amount": "number",
-        "description": "string",
-        "category": "string"
+        "methodName": "string",
+        "specimen": "string",
+        "specimenVolume": "string",
+        "container": "string",
+        "reported": "string",
+        "specialInstruction": "string (optional)",
+        "createdAt": "string (optional)",
+        "updatedAt": "string (optional)"
       }
     ],
-    "pagination": { ... }
+    "pagination": {
+      "total": "number",
+      "page": "number",
+      "limit": "number",
+      "totalPages": "number"
+    }
   }
   ```
 
-### 2. List Packages
+### 2. Get Single Test Details
+
+- **Endpoint**: `GET /tests/:id`
+- **Response**: Returns the single `Test` object matching the parameters in the list above.
+
+### 3. List Packages
 
 Retrieve a paginated list of health packages.
 
@@ -121,6 +159,19 @@ Retrieve a paginated list of health packages.
 - **Query Params**:
   - `page`: number
   - `limit`: number
+  - _Optional Filters_:
+    - `name`: string
+    - `minPrice`: number
+    - `maxPrice`: number
+    - `testName`: string
+    - `testCode`: string
+    - `department`: string
+    - `methodName`: string
+    - `specimen`: string
+    - `specimenVolume`: string
+    - `container`: string
+    - `reported`: string
+    - `specialInstruction`: string
 - **Response**:
   ```json
   {
@@ -128,19 +179,28 @@ Retrieve a paginated list of health packages.
       {
         "id": "number",
         "name": "string",
+        "description": "string (optional)",
         "price": "number",
-        "description": "string",
-        "image": "string (URL)"
+        "tests": [
+          /* Array of Full Test objects from above */
+        ],
+        "createdAt": "string (optional)",
+        "updatedAt": "string (optional)"
       }
     ],
-    "pagination": { ... }
+    "pagination": {
+      "total": "number",
+      "page": "number",
+      "limit": "number",
+      "totalPages": "number"
+    }
   }
   ```
 
-### 3. Get Test/Package Details
+### 4. Get Single Package Details
 
-- **Test**: `GET /tests/:id`
-- **Package**: `GET /packages/:id`
+- **Endpoint**: `GET /packages/:id`
+- **Response**: Returns the single `Package` object matching the detailed parameters in the list above.
 
 ---
 
@@ -148,7 +208,7 @@ Retrieve a paginated list of health packages.
 
 ### 1. Create Booking
 
-Submit a new booking request. This endpoint uses `multipart/form-data` to handle prescription file uploads.
+Submit a new booking request. This endpoint uses `multipart/form-data` to handle possible prescription file uploads.
 
 - **Endpoint**: `POST /bookings`
 - **Request Type**: `multipart/form-data`
@@ -193,18 +253,34 @@ Retrieve bookings for the logged-in user.
         "date": "string",
         "timeSlot": "string",
         "status": "string",
+        "paymentMode": "string (optional)",
         "paymentStatus": "string",
-        "reportUrl": "string (optional)",
-        "items": [ ... ]
+        "createdAt": "string",
+        "items": [
+          {
+            "id": "number",
+            "type": "\"test\" | \"package\"",
+            "name": "string",
+            "price": "number",
+            "testId": "number (optional)",
+            "packageId": "number (optional)"
+          }
+        ]
       }
     ],
-    "pagination": { ... }
+    "pagination": {
+      "total": "number",
+      "page": "number",
+      "limit": "number"
+    }
   }
   ```
 
 ### 3. Cancel Booking
 
-- **Endpoint**: `POST /bookings/:id/cancel`
+Cancel an existing booking request based on its ID.
+
+- **Endpoint**: `PATCH /bookings/:id/cancel`
 - **Response**: `200 OK`
 
 ---
@@ -228,6 +304,8 @@ Update the user's name or date of birth.
 ---
 
 ## Saved Addresses
+
+_(Note: Endpoint documented, pending full integration)_
 
 ### 1. List Addresses
 
@@ -274,6 +352,8 @@ Update the user's name or date of birth.
 
 ## Health Records (Medical History)
 
+_(Note: Endpoint documented, pending full integration)_
+
 ### 1. List Records
 
 Retrieve all medical history, including uploaded prescriptions and previous test reports.
@@ -313,9 +393,9 @@ Upload an external medical document.
 
 ## Notifications
 
-### 1. List Notifications
+_(Note: Mocked/Stubbed)_
 
-(Mocked in frontend, draft requirement)
+### 1. List Notifications
 
 - **Endpoint**: `GET /notifications`
 - **Response**:
