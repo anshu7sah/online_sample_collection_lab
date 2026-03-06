@@ -39,6 +39,7 @@ const DEFAULT_PACKAGE_IMAGE =
 
 export default function PackagesScreen() {
   const [packageSearch, setPackageSearch] = useState('');
+  const [searchType, setSearchType] = useState<'name' | 'testName'>('name');
   const [page, setPage] = useState(1);
   const [addingItems, setAddingItems] = useState<Set<number>>(new Set());
 
@@ -50,7 +51,7 @@ export default function PackagesScreen() {
     page,
     limit: 10,
     filters: {
-      name: debouncedPackageSearch || undefined,
+      [searchType]: debouncedPackageSearch || undefined,
     },
   });
 
@@ -102,7 +103,7 @@ export default function PackagesScreen() {
 
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedPackageSearch]);
+  }, [debouncedPackageSearch, searchType]);
 
   return (
     <View style={s.root}>
@@ -121,7 +122,11 @@ export default function PackagesScreen() {
               <Search size={18} color={COLORS.primary} strokeWidth={2} />
               <TextInput
                 style={s.searchInput}
-                placeholder="Search packages..."
+                placeholder={
+                  searchType === 'name'
+                    ? 'Search packages by name...'
+                    : 'Search packages by test...'
+                }
                 placeholderTextColor={COLORS.grey500}
                 value={packageSearch}
                 onChangeText={(text) => {
@@ -130,10 +135,50 @@ export default function PackagesScreen() {
                 }}
               />
               {packageSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setPackageSearch('')}>
+                <TouchableOpacity
+                  style={{ padding: 4 }}
+                  onPress={() => setPackageSearch('')}
+                >
                   <X size={18} color={COLORS.grey400} />
                 </TouchableOpacity>
               )}
+            </View>
+
+            <View style={s.searchTypeTabs}>
+              <TouchableOpacity
+                style={[
+                  s.searchTypeBtn,
+                  searchType === 'name' && s.searchTypeBtnActive,
+                ]}
+                onPress={() => setSearchType('name')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    s.searchTypeText,
+                    searchType === 'name' && s.searchTypeTextActive,
+                  ]}
+                >
+                  By Package
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  s.searchTypeBtn,
+                  searchType === 'testName' && s.searchTypeBtnActive,
+                ]}
+                onPress={() => setSearchType('testName')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    s.searchTypeText,
+                    searchType === 'testName' && s.searchTypeTextActive,
+                  ]}
+                >
+                  By Test
+                </Text>
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -369,6 +414,31 @@ const s = StyleSheet.create({
     color: COLORS.grey800,
     fontWeight: '500',
     marginLeft: 10,
+  },
+  searchTypeTabs: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  searchTypeBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  searchTypeBtnActive: {
+    backgroundColor: '#fff',
+    borderColor: '#fff',
+  },
+  searchTypeText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+  },
+  searchTypeTextActive: {
+    color: COLORS.primary,
   },
 
   /* ── Loader ── */

@@ -7,7 +7,6 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
 import { useEffect, useState } from 'react';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
@@ -26,7 +25,6 @@ import Toast from 'react-native-toast-message';
 
 import { useBooking } from './BookingContext';
 import { useCurrent } from '@/hooks/useCurrent';
-import { useGPSLocation } from '@/hooks/useGPSLocation';
 import { calculateAge } from '@/lib/calculateAge';
 import { COLORS } from '@/lib/theme';
 
@@ -36,8 +34,6 @@ export default function Step1() {
   const { data: user } = useCurrent();
 
   const [forSelf, setForSelf] = useState(true);
-  const [manualLocation, setManualLocation] = useState(false);
-  const gps = useGPSLocation();
 
   useEffect(() => {
     if (forSelf && user) {
@@ -52,51 +48,7 @@ export default function Step1() {
     }
   }, [forSelf, user]);
 
-  /* ── When GPS resolves, update booking context ── */
-  useEffect(() => {
-    if (gps.location) {
-      dispatch({ location: gps.location });
-    }
-    if (gps.address) {
-      dispatch({ address: gps.address });
-    }
-  }, [gps.location, gps.address]);
-
-  /* ── Show toast on GPS error ── */
-  useEffect(() => {
-    if (gps.error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Location Error',
-        text2: gps.error,
-      });
-    }
-  }, [gps.error]);
-
-  const useCurrentLocation = async () => {
-    setManualLocation(false);
-    await gps.fetchLocation();
-  };
-
-  useEffect(() => {
-    if (!state.location && !manualLocation && !gps.loading) {
-      useCurrentLocation();
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleMapPress = (e: any) => {
-    if (!manualLocation) return;
-    const { coordinate } = e.nativeEvent;
-    dispatch({ location: coordinate });
-  };
-
-  const isValid =
-    state.name &&
-    state.age &&
-    state.gender &&
-    state.mobile &&
-    state.address &&
-    state.location;
+  const isValid = state.name && state.age && state.gender && state.mobile;
 
   return (
     <ScrollView
@@ -118,13 +70,19 @@ export default function Step1() {
 
       {/* Step Indicator */}
       <View style={s.stepRow}>
-        {[1, 2, 3].map((n) => (
+        {[1, 2, 3, 4].map((n) => (
           <View key={n} style={s.stepItem}>
             <View style={[s.stepCircle, n === 1 && s.stepCircleActive]}>
               <Text style={[s.stepNum, n === 1 && s.stepNumActive]}>{n}</Text>
             </View>
             <Text style={[s.stepLabel, n === 1 && s.stepLabelActive]}>
-              {n === 1 ? 'Details' : n === 2 ? 'Schedule' : 'Confirm'}
+              {n === 1
+                ? 'Details'
+                : n === 2
+                  ? 'Address'
+                  : n === 3
+                    ? 'Schedule'
+                    : 'Confirm'}
             </Text>
           </View>
         ))}
@@ -214,88 +172,6 @@ export default function Step1() {
         </View>
       </View>
 
-      <View style={s.inputGroup}>
-        <Text style={s.inputLabel}>Detailed Address</Text>
-        <TextInput
-          style={s.input}
-          placeholder="Enter your full address"
-          placeholderTextColor={COLORS.grey400}
-          value={state.address}
-          onChangeText={(v) => dispatch({ address: v })}
-        />
-      </View>
-
-      {/* Location */}
-      <Text style={s.inputLabel}>Location</Text>
-      <View style={s.locationRow}>
-        <TouchableOpacity
-          style={[s.locBtn, !manualLocation && s.locBtnActive]}
-          onPress={useCurrentLocation}
-          activeOpacity={0.7}
-          disabled={gps.loading}
-        >
-          {gps.loading ? (
-            <ActivityIndicator
-              size={14}
-              color={!manualLocation ? '#fff' : COLORS.primary}
-            />
-          ) : (
-            <Navigation
-              size={14}
-              color={!manualLocation ? '#fff' : COLORS.grey500}
-            />
-          )}
-          <Text style={[s.locBtnText, !manualLocation && s.locBtnTextActive]}>
-            {gps.loading ? 'Fetching...' : 'Current Location'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.locBtn, manualLocation && s.locBtnActive]}
-          onPress={() => setManualLocation(true)}
-          activeOpacity={0.7}
-        >
-          <Hand size={14} color={manualLocation ? '#fff' : COLORS.grey500} />
-          <Text style={[s.locBtnText, manualLocation && s.locBtnTextActive]}>
-            Set Manually
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <MapView
-        style={s.map}
-        region={
-          state.location
-            ? {
-                latitude: state.location.latitude,
-                longitude: state.location.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }
-            : undefined
-        }
-        onPress={handleMapPress}
-      >
-        {state.location && <Marker coordinate={state.location} />}
-      </MapView>
-
-      {state.location && (
-        <View style={s.locConfirm}>
-          <MapPin size={14} color={COLORS.success} />
-          <Text style={s.locConfirmText}>
-            {state.address
-              ? state.address
-              : `Location set (${state.location.latitude.toFixed(4)}, ${state.location.longitude.toFixed(4)})`}
-          </Text>
-        </View>
-      )}
-
-      {gps.error && (
-        <View style={s.locError}>
-          <AlertCircle size={14} color={COLORS.error} />
-          <Text style={s.locErrorText}>{gps.error}</Text>
-        </View>
-      )}
-
       {/* Next */}
       <TouchableOpacity
         style={[s.nextBtn, !isValid && { opacity: 0.4 }]}
@@ -331,12 +207,12 @@ const s = StyleSheet.create({
     elevation: 2,
   },
 
-  /* Step Indicator */
   stepRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 32,
+    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 24,
+    marginHorizontal: 16,
   },
   stepItem: { alignItems: 'center' },
   stepCircle: {
@@ -351,7 +227,12 @@ const s = StyleSheet.create({
   stepCircleActive: { backgroundColor: COLORS.primary },
   stepNum: { fontSize: 14, fontWeight: '700', color: COLORS.grey400 },
   stepNumActive: { color: '#fff' },
-  stepLabel: { fontSize: 11, fontWeight: '600', color: COLORS.grey400 },
+  stepLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.grey400,
+    textAlign: 'center',
+  },
   stepLabelActive: { color: COLORS.primary },
 
   title: {

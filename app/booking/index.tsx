@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker } from '@/components/Map';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Checkbox, RadioButton } from 'react-native-paper';
@@ -50,6 +50,7 @@ export default function BookingScreen() {
     name: '',
     age: '',
     mobile: '',
+    address: '',
   });
 
   const [location, setLocation] = useState<any>(null);
@@ -79,9 +80,11 @@ export default function BookingScreen() {
 
   /* ================= VALIDATION ================= */
 
-  const step1Valid = form.name && form.age && form.mobile && location;
+  const step1Valid = form.name && form.age && form.mobile;
 
-  const step2Valid =
+  const step2Valid = location !== null && form.address.trim() !== '';
+
+  const step3Valid =
     date &&
     timeSlot &&
     (!hasPrescription || prescriptionFile) &&
@@ -136,7 +139,7 @@ export default function BookingScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.grey100 }}>
       {/* ================= STEPPER ================= */}
       <View style={styles.stepHeader}>
-        {['Details', 'Schedule', 'Confirm'].map((label, i) => (
+        {['Details', 'Address', 'Schedule', 'Confirm'].map((label, i) => (
           <View key={i} style={styles.stepItem}>
             <View
               style={[
@@ -217,6 +220,37 @@ export default function BookingScreen() {
             onChangeText={(v) => setForm({ ...form, mobile: v })}
           />
 
+          <PrimaryButton label="Next" disabled={!step1Valid} onPress={goNext} />
+        </ScrollView>
+
+        {/* ================= STEP 2 ================= */}
+        <ScrollView
+          key="2"
+          style={{ width }}
+          contentContainerStyle={styles.page}
+        >
+          <Text style={styles.title}>Address & Location</Text>
+
+          <TextInput
+            placeholder="Complete Address (House No, Building, Street)"
+            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+            value={form.address}
+            onChangeText={(v) => setForm({ ...form, address: v })}
+            multiline
+          />
+
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: '600',
+              marginTop: 12,
+              marginBottom: -4,
+              color: '#444',
+            }}
+          >
+            Pin Location on Map
+          </Text>
+
           <MapView
             style={styles.map}
             region={
@@ -245,12 +279,20 @@ export default function BookingScreen() {
             />
           </View>
 
-          <PrimaryButton label="Next" disabled={!step1Valid} onPress={goNext} />
+          <View style={{ marginTop: 24 }}>
+            <OutlineButton label="Previous" onPress={goBack} />
+            <View style={{ height: 12 }} />
+            <PrimaryButton
+              label="Next"
+              disabled={!step2Valid}
+              onPress={goNext}
+            />
+          </View>
         </ScrollView>
 
-        {/* ================= STEP 2 ================= */}
+        {/* ================= STEP 3 ================= */}
         <ScrollView
-          key="2"
+          key="3"
           style={{ width }}
           contentContainerStyle={styles.page}
         >
@@ -333,21 +375,25 @@ export default function BookingScreen() {
             <View style={{ height: 12 }} />
             <PrimaryButton
               label="Next"
-              disabled={!step2Valid}
+              disabled={!step3Valid}
               onPress={goNext}
             />
           </View>
         </ScrollView>
 
-        {/* ================= STEP 3 ================= */}
+        {/* ================= STEP 4 ================= */}
         <ScrollView
-          key="3"
+          key="4"
           style={{ width }}
           contentContainerStyle={styles.page}
         >
           <Text style={styles.title}>Confirm Booking</Text>
 
-          <PrimaryButton label="Confirm Booking" onPress={confirmBooking} />
+          <View style={{ marginTop: 24 }}>
+            <OutlineButton label="Previous" onPress={goBack} />
+            <View style={{ height: 12 }} />
+            <PrimaryButton label="Confirm Booking" onPress={confirmBooking} />
+          </View>
         </ScrollView>
       </ScrollView>
 
@@ -361,19 +407,20 @@ export default function BookingScreen() {
 const styles = StyleSheet.create({
   stepHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: COLORS.card,
   },
-  stepItem: { alignItems: 'center' },
+  stepItem: { alignItems: 'center', flex: 1 },
   stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#CBD5E1',
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  stepLabel: { fontSize: 12, color: '#6B7280' },
+  stepLabel: { fontSize: 11, color: '#6B7280', textAlign: 'center' },
 
   page: { padding: 20 },
   title: { fontSize: 24, fontWeight: '700', marginBottom: 16 },

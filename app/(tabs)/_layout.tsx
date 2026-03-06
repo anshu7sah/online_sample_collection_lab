@@ -1,4 +1,5 @@
 import { useCurrent } from '@/hooks/useCurrent';
+import { useApp } from '@/contexts/AppContext';
 import { COLORS } from '@/lib/theme';
 import { Tabs, useRouter } from 'expo-router';
 import {
@@ -13,6 +14,7 @@ import { useEffect } from 'react';
 export default function TabLayout() {
   const router = useRouter();
   const { data, isLoading } = useCurrent();
+  const { state } = useApp();
 
   useEffect(() => {
     if (!isLoading && !data) {
@@ -77,6 +79,12 @@ export default function TabLayout() {
           tabBarIcon: ({ size, color }) => (
             <ShoppingCart size={24} color={color} />
           ),
+          tabBarBadge: state.cart.length > 0 ? state.cart.length : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#ef8e1f',
+            fontSize: 10,
+            color: 'white',
+          },
         }}
       />
       <Tabs.Screen

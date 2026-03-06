@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 
-export default function UserDetailsScreen() {
+export default function OtpScreen() {
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>User Details</Text>
+      <Text>OTP Screen</Text>
     </View>
   );
 }

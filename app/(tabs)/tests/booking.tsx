@@ -14,7 +14,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker } from '@/components/Map';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Checkbox, RadioButton } from 'react-native-paper';
 import Toast from 'react-native-toast-message';

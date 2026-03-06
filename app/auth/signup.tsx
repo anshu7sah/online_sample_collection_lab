@@ -296,6 +296,7 @@ const s = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    height: 56, // Fixed height for consistency
   },
   input: { flex: 1, fontSize: 16, color: '#222' },
 
@@ -309,7 +310,8 @@ const s = StyleSheet.create({
     borderColor: '#E2E2E2',
     borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    height: 56, // Fixed height for consistency
   },
   dateBtnText: { fontSize: 15, color: COLORS.grey400 },
   dateBtnTextFilled: { color: '#222', fontWeight: '600' },
