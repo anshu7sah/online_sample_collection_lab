@@ -12,7 +12,12 @@
       "package": "com.anshu7sah.sukralab",
       "permissions": [
         "ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "ios": {
       "bundleIdentifier": "com.anshu7sah.sukralab",
