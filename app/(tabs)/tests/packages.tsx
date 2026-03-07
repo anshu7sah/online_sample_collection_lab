@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Eye,
   ChevronRight,
+  ChevronLeft,
   FlaskConical,
   Inbox,
   Filter,
@@ -118,6 +119,13 @@ export default function PackagesScreen() {
           style={s.heroBg}
         >
           <SafeAreaView edges={['top']} style={s.heroSafeArea}>
+            <View style={s.headerRow}>
+              <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+                <ChevronLeft size={24} color="#fff" />
+              </TouchableOpacity>
+              <Text style={s.headerTitle}>Lab Packages</Text>
+              <View style={{ width: 40 }} />
+            </View>
             <View style={s.searchBar}>
               <Search size={18} color={COLORS.primary} strokeWidth={2} />
               <TextInput
@@ -368,6 +376,25 @@ const s = StyleSheet.create({
   heroSafeArea: {
     paddingHorizontal: 24,
     paddingTop: 8,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
   },
   heroSub: {
     fontSize: 14,
