@@ -8,12 +8,14 @@ import {
   Easing,
   Dimensions,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/contexts/AppContext';
 import { COLORS } from '@/lib/theme';
 import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -56,8 +58,20 @@ export default function SplashScreen() {
       if (state.token) {
         if (state.biometricsEnabled) {
           try {
+            // Read the saved biometric type to show the correct prompt
+            const biometricType = await AsyncStorage.getItem('biometricType');
+            let promptMessage = 'Unlock Sukra Polyclinic';
+            if (biometricType === 'face') {
+              promptMessage =
+                Platform.OS === 'ios'
+                  ? 'Unlock with Face ID'
+                  : 'Unlock with Face Recognition';
+            } else if (biometricType === 'fingerprint') {
+              promptMessage = 'Unlock with Fingerprint';
+            }
+
             const result = await LocalAuthentication.authenticateAsync({
-              promptMessage: 'Unlock Sukra Polyclinic',
+              promptMessage,
               fallbackLabel: 'Use Mobile Number',
             });
             if (result.success) {

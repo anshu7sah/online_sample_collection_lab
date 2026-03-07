@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -21,6 +22,7 @@ import Toast from 'react-native-toast-message';
 import { useRouter } from 'expo-router';
 import { COLORS } from '@/lib/theme';
 import { useGPSLocation } from '@/hooks/useGPSLocation';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -136,23 +138,29 @@ export default function BookingScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.grey100 }}>
+      <StatusBar barStyle="dark-content" />
       {/* ===== Step Indicator ===== */}
-      <View style={styles.stepper}>
-        <View style={styles.stepLine}>
-          <Animated.View style={[styles.stepFill, fillStyle]} />
-        </View>
-        {[1, 2, 3].map((s, i) => (
-          <View
-            key={s}
-            style={[
-              styles.stepCircle,
-              step.value >= i && styles.stepCircleActive,
-            ]}
-          >
-            <Text style={styles.stepText}>{s}</Text>
+      <SafeAreaView
+        edges={['top']}
+        style={{ position: 'absolute', left: 24, zIndex: 10 }}
+      >
+        <View style={styles.stepper}>
+          <View style={styles.stepLine}>
+            <Animated.View style={[styles.stepFill, fillStyle]} />
           </View>
-        ))}
-      </View>
+          {[1, 2, 3].map((s, i) => (
+            <View
+              key={s}
+              style={[
+                styles.stepCircle,
+                step.value >= i && styles.stepCircleActive,
+              ]}
+            >
+              <Text style={styles.stepText}>{s}</Text>
+            </View>
+          ))}
+        </View>
+      </SafeAreaView>
 
       <ScrollView
         ref={pagerRef}
@@ -472,7 +480,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
   subTitle: { marginVertical: 12, fontSize: 16 },
 
-  stepper: { position: 'absolute', left: 24, top: 40 },
+  stepper: { marginTop: 12 },
   stepLine: {
     position: 'absolute',
     width: 3,

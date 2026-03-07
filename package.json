@@ -9,7 +9,10 @@
     },
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["react-native-geolocation-service", "@lucide/lab"]
+        "exclude": [
+          "react-native-geolocation-service",
+          "@lucide/lab"
+        ]
       }
     }
   },

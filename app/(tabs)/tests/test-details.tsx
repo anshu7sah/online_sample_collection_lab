@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ShoppingCart,
   Check,
@@ -17,8 +20,9 @@ import {
   FileText,
   AlertCircle,
   Droplets,
+  ChevronLeft,
 } from 'lucide-react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '@/contexts/AppContext';
 import { useSingleTest } from '@/hooks/useSingleTest';
 import { COLORS } from '@/lib/theme';
@@ -27,6 +31,7 @@ import Toast from 'react-native-toast-message';
 export default function TestDetailsScreen() {
   const { id } = useLocalSearchParams();
   const testId = Number(id);
+  const router = useRouter();
 
   const { dispatch, state } = useApp();
   const [isAdding, setIsAdding] = React.useState(false);
@@ -114,6 +119,25 @@ export default function TestDetailsScreen() {
 
   return (
     <View style={s.root}>
+      <StatusBar barStyle="light-content" backgroundColor="#004e56" />
+
+      {/* ═══ Custom Header ═══ */}
+      <LinearGradient
+        colors={['#004e56', COLORS.primary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        <SafeAreaView edges={['top']}>
+          <View style={s.customHeader}>
+            <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+              <ChevronLeft size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={s.customHeaderTitle}>Test Details</Text>
+            <View style={{ width: 40 }} />
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -336,5 +360,27 @@ const s = StyleSheet.create({
   addBtnDisabled: {
     backgroundColor: COLORS.primaryMuted,
     shadowOpacity: 0.1,
+  },
+
+  /* Custom Header */
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

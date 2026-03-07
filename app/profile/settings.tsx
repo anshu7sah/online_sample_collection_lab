@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   ScrollView,
   Switch,
   StatusBar,
-  Alert,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,7 +15,8 @@ import {
   ChevronLeft,
   Bell,
   Moon,
-  Shield,
+  Fingerprint,
+  ScanFace,
   Smartphone,
 } from 'lucide-react-native';
 import { COLORS } from '@/lib/theme';
@@ -31,6 +32,85 @@ export default function SettingsScreen() {
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [biometrics, setBiometrics] = useState(state.biometricsEnabled);
+
+  // Detect what biometric types are available on this device
+  const [hasFaceId, setHasFaceId] = useState(false);
+  const [hasFingerprint, setHasFingerprint] = useState(false);
+  const [biometricType, setBiometricType] = useState<
+    'face' | 'fingerprint' | null
+  >(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const types =
+          await LocalAuthentication.supportedAuthenticationTypesAsync();
+        setHasFaceId(
+          types.includes(
+            LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION,
+          ),
+        );
+        setHasFingerprint(
+          types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT),
+        );
+
+        // Load previously saved biometric type preference
+        const savedType = await AsyncStorage.getItem('biometricType');
+        if (savedType === 'face' || savedType === 'fingerprint') {
+          setBiometricType(savedType);
+        }
+      } catch (e) {
+        console.error('Error detecting biometric types:', e);
+      }
+    })();
+  }, []);
+
+  const enableBiometric = async (type: 'face' | 'fingerprint') => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      if (!hasHardware) {
+        alert("Your device doesn't support biometrics.");
+        return;
+      }
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (!isEnrolled) {
+        alert(
+          type === 'face'
+            ? 'No Face ID / face recognition is set up on this device. Please set it up in your device settings first.'
+            : 'No fingerprint is set up on this device. Please set it up in your device settings first.',
+        );
+        return;
+      }
+
+      const promptMessage =
+        type === 'face'
+          ? 'Authenticate with Face ID to enable it'
+          : 'Authenticate with Fingerprint to enable it';
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage,
+        fallbackLabel: 'Use password',
+      });
+
+      if (result.success) {
+        setBiometrics(true);
+        setBiometricType(type);
+        dispatch({ type: 'SET_BIOMETRICS', payload: true });
+        await AsyncStorage.setItem('biometricsEnabled', 'true');
+        await AsyncStorage.setItem('biometricType', type);
+      }
+    } catch (e) {
+      console.error('Biometric error: ', e);
+    }
+  };
+
+  const disableBiometric = async () => {
+    setBiometrics(false);
+    setBiometricType(null);
+    dispatch({ type: 'SET_BIOMETRICS', payload: false });
+    await AsyncStorage.setItem('biometricsEnabled', 'false');
+    await AsyncStorage.removeItem('biometricType');
+  };
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -114,74 +194,102 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Security */}
+        {/* Security - Biometrics */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>Security</Text>
           <View style={s.card}>
-            <View style={s.row}>
-              <View style={s.rowLeft}>
-                <View style={[s.iconBox, { backgroundColor: '#DCFCE7' }]}>
-                  <Shield size={20} color="#22C55E" />
+            {/* Face ID / Face Recognition */}
+            {hasFaceId && (
+              <View style={s.row}>
+                <View style={s.rowLeft}>
+                  <View style={[s.iconBox, { backgroundColor: '#DBEAFE' }]}>
+                    <ScanFace size={20} color="#3B82F6" />
+                  </View>
+                  <View>
+                    <Text style={s.rowTitle}>
+                      {Platform.OS === 'ios' ? 'Face ID' : 'Face Unlock'}
+                    </Text>
+                    {biometrics && biometricType === 'face' && (
+                      <Text style={s.rowSubtitle}>Active</Text>
+                    )}
+                  </View>
                 </View>
-                <Text style={s.rowTitle}>Two-Factor Auth</Text>
-              </View>
-              <TouchableOpacity>
-                <Text style={s.actionText}>Enable</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={[s.row, { borderBottomWidth: 0 }]}>
-              <View style={s.rowLeft}>
-                <View style={[s.iconBox, { backgroundColor: '#FCE7F3' }]}>
-                  <Smartphone size={20} color="#EC4899" />
-                </View>
-                <Text style={s.rowTitle}>Biometric Login</Text>
-              </View>
-              <Switch
-                value={biometrics}
-                onValueChange={async (value) => {
-                  try {
+                <Switch
+                  value={biometrics && biometricType === 'face'}
+                  onValueChange={async (value) => {
                     if (value) {
-                      const hasHardware =
-                        await LocalAuthentication.hasHardwareAsync();
-                      if (!hasHardware) {
-                        alert("Your device doesn't support biometrics.");
-                        return;
-                      }
-                      const isEnrolled =
-                        await LocalAuthentication.isEnrolledAsync();
-                      if (!isEnrolled) {
-                        alert('No biometrics are set up on this device.');
-                        return;
-                      }
-
-                      const result =
-                        await LocalAuthentication.authenticateAsync({
-                          promptMessage:
-                            'Authenticate to enable Biometric Login',
-                          fallbackLabel: 'Use password',
-                        });
-
-                      if (result.success) {
-                        setBiometrics(true);
-                        dispatch({ type: 'SET_BIOMETRICS', payload: true });
-                        await AsyncStorage.setItem('biometricsEnabled', 'true');
-                      }
+                      await enableBiometric('face');
                     } else {
-                      setBiometrics(false);
-                      dispatch({ type: 'SET_BIOMETRICS', payload: false });
-                      await AsyncStorage.setItem('biometricsEnabled', 'false');
+                      await disableBiometric();
                     }
-                  } catch (e) {
-                    console.error('Biometric error: ', e);
+                  }}
+                  trackColor={{
+                    false: COLORS.grey200,
+                    true: COLORS.primaryLight,
+                  }}
+                  thumbColor={
+                    biometrics && biometricType === 'face'
+                      ? COLORS.primary
+                      : '#f4f3f4'
                   }
-                }}
-                trackColor={{
-                  false: COLORS.grey200,
-                  true: COLORS.primaryLight,
-                }}
-                thumbColor={biometrics ? COLORS.primary : '#f4f3f4'}
-              />
-            </View>
+                />
+              </View>
+            )}
+
+            {/* Fingerprint */}
+            {hasFingerprint && (
+              <View
+                style={[
+                  s.row,
+                  !hasFaceId && { borderBottomWidth: 0 },
+                  hasFaceId && !hasFingerprint && { borderBottomWidth: 0 },
+                ]}
+              >
+                <View style={s.rowLeft}>
+                  <View style={[s.iconBox, { backgroundColor: '#FCE7F3' }]}>
+                    <Fingerprint size={20} color="#EC4899" />
+                  </View>
+                  <View>
+                    <Text style={s.rowTitle}>Fingerprint</Text>
+                    {biometrics && biometricType === 'fingerprint' && (
+                      <Text style={s.rowSubtitle}>Active</Text>
+                    )}
+                  </View>
+                </View>
+                <Switch
+                  value={biometrics && biometricType === 'fingerprint'}
+                  onValueChange={async (value) => {
+                    if (value) {
+                      await enableBiometric('fingerprint');
+                    } else {
+                      await disableBiometric();
+                    }
+                  }}
+                  trackColor={{
+                    false: COLORS.grey200,
+                    true: COLORS.primaryLight,
+                  }}
+                  thumbColor={
+                    biometrics && biometricType === 'fingerprint'
+                      ? COLORS.primary
+                      : '#f4f3f4'
+                  }
+                />
+              </View>
+            )}
+
+            {/* Fallback if no biometrics available at all */}
+            {!hasFaceId && !hasFingerprint && (
+              <View style={[s.row, { borderBottomWidth: 0 }]}>
+                <View style={s.rowLeft}>
+                  <View style={[s.iconBox, { backgroundColor: '#F1F5F9' }]}>
+                    <Smartphone size={20} color="#64748B" />
+                  </View>
+                  <Text style={s.rowTitle}>Biometrics Unavailable</Text>
+                </View>
+                <Text style={s.unavailableText}>Not supported</Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -269,5 +377,16 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  rowSubtitle: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  unavailableText: {
+    fontSize: 13,
+    color: COLORS.grey400,
+    fontWeight: '500',
   },
 });

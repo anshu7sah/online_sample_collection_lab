@@ -295,7 +295,7 @@ const s = StyleSheet.create({
     borderColor: '#E2E2E2',
     borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 0,
     height: 56, // Fixed height for consistency
   },
   input: { flex: 1, fontSize: 16, color: '#222' },
