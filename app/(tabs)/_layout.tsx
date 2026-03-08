@@ -10,11 +10,13 @@ import {
   UserCircle,
 } from 'lucide-react-native';
 import { useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const router = useRouter();
   const { data, isLoading } = useCurrent();
   const { state } = useApp();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!isLoading && !data) {
@@ -32,14 +34,15 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarActiveTintColor: '#ef8e1f',
         tabBarInactiveTintColor: 'rgba(255,255,255,0.55)',
         tabBarStyle: {
           backgroundColor: COLORS.primary,
           borderTopWidth: 0,
-          height: 68,
+          height: 60 + Math.max(0, insets.bottom),
           paddingTop: 8,
-          paddingBottom: 10,
+          paddingBottom: 8 + Math.max(0, insets.bottom),
           elevation: 10,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -3 },

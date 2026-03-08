@@ -6,7 +6,7 @@ export const useCancelBooking = () => {
 
   return useMutation({
     mutationFn: async (id: number) => {
-      const res = await api.patch(`/bookings/${id}/cancel`);
+      const res = await api.patch(`/my/${id}/cancel`);
       return res.data;
     },
     onSuccess: () => {

@@ -11,6 +11,9 @@ import {
   StatusBar,
   Modal,
   Alert,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,10 +31,12 @@ import {
   ShieldCheck,
   CreditCard,
   MapPin,
+  Star,
 } from 'lucide-react-native';
 import * as Linking from 'expo-linking';
 import { useMyBookings } from '@/hooks/useMyBookings';
 import { useCancelBooking } from '@/hooks/useCancelBooking';
+import { useRateRider } from '@/hooks/useRateRider';
 import { COLORS } from '@/lib/theme';
 
 const { width } = Dimensions.get('window');
@@ -42,6 +47,9 @@ export default function ReportsScreen() {
   );
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
+  const [isRatingMode, setIsRatingMode] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
 
   const { data, isLoading, isFetching, refetch } = useMyBookings({
     page: 1,
@@ -49,6 +57,7 @@ export default function ReportsScreen() {
   });
 
   const cancelMutation = useCancelBooking();
+  const rateMutation = useRateRider();
 
   const bookings = data?.data ?? [];
   const completed = bookings.filter((b: any) => b.status === 'COMPLETED');
@@ -61,7 +70,18 @@ export default function ReportsScreen() {
 
   const handleOpenDetails = (booking: any) => {
     setSelectedBooking(booking);
+    setIsRatingMode(false);
+    setRating(0);
+    setRatingComment('');
     setShowModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setShowModal(false);
+    setSelectedBooking(null);
+    setIsRatingMode(false);
+    setRating(0);
+    setRatingComment('');
   };
 
   const handleCancelClick = (id: number) => {
@@ -76,8 +96,7 @@ export default function ReportsScreen() {
           onPress: () => {
             cancelMutation.mutate(id, {
               onSuccess: () => {
-                setShowModal(false);
-                setSelectedBooking(null);
+                closeDetailsModal();
                 Alert.alert('Success', 'Booking cancelled successfully.');
               },
               onError: (error: any) => {
@@ -89,6 +108,27 @@ export default function ReportsScreen() {
           },
         },
       ],
+    );
+  };
+
+  const handleSubmitRating = () => {
+    if (rating === 0) {
+      Alert.alert('Error', 'Please select a rating before submitting.');
+      return;
+    }
+    rateMutation.mutate(
+      { bookingId: selectedBooking.id, rating, comment: ratingComment },
+      {
+        onSuccess: () => {
+          Alert.alert('Success', 'Thank you for your feedback!');
+          closeDetailsModal();
+        },
+        onError: (error: any) => {
+          const msg =
+            error.response?.data?.message || 'Failed to submit rating';
+          Alert.alert('Error', msg);
+        },
+      },
     );
   };
 
@@ -376,164 +416,285 @@ export default function ReportsScreen() {
         visible={showModal}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setShowModal(false)}
+        onRequestClose={closeDetailsModal}
       >
-        <View style={s.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={s.modalOverlay}
+        >
           <View style={s.modalContent}>
-            {/* Header */}
-            <View style={s.modalHeader}>
-              <View>
-                <Text style={s.modalTitle}>Booking Details</Text>
-                <Text style={s.modalID}>Order ID: #{selectedBooking?.id}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => setShowModal(false)}
-                style={s.closeBtn}
-              >
-                <X size={24} color={COLORS.grey800} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Status Section */}
-              <View style={s.detailSection}>
-                <View style={[s.sectionIcon, { backgroundColor: '#E0F2FE' }]}>
-                  <Info size={20} color="#0284C7" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.sectionTitle}>Booking Status</Text>
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Status:</Text>
-                    <View
-                      style={[
-                        s.statusBadge,
-                        selectedBooking?.status === 'COMPLETED'
-                          ? { backgroundColor: COLORS.successLight }
-                          : { backgroundColor: COLORS.secondaryLight },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.statusText,
-                          selectedBooking?.status === 'COMPLETED'
-                            ? { color: COLORS.success }
-                            : { color: COLORS.secondary },
-                        ]}
-                      >
-                        {selectedBooking?.status}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Payment:</Text>
-                    <Text style={s.paymentStatusText}>
-                      {selectedBooking?.paymentStatus}
+            {isRatingMode ? (
+              <>
+                {/* ── Rating Mode ── */}
+                <View style={s.modalHeader}>
+                  <View>
+                    <Text style={s.modalTitle}>Rate Experience</Text>
+                    <Text style={s.modalID}>
+                      Order ID: #{selectedBooking?.id}
                     </Text>
                   </View>
-                </View>
-              </View>
-
-              {/* Items Section */}
-              <View style={s.detailSection}>
-                <View style={[s.sectionIcon, { backgroundColor: '#F0FDF4' }]}>
-                  <ShieldCheck size={20} color="#16A34A" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.sectionTitle}>Tests Booked</Text>
-                  {selectedBooking?.items.map((item: any, idx: number) => (
-                    <View key={idx} style={s.itemRow}>
-                      <Text style={s.itemName} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <Text style={s.itemPrice}>₹{item.price}</Text>
-                    </View>
-                  ))}
-                  <View style={s.totalDivider} />
-                  <View style={s.itemRow}>
-                    <Text style={s.totalLabel}>Total Amount</Text>
-                    <Text style={s.totalValue}>
-                      ₹
-                      {selectedBooking?.items.reduce(
-                        (acc: number, curr: any) => acc + curr.price,
-                        0,
-                      )}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Appointment Section */}
-              <View style={s.detailSection}>
-                <View style={[s.sectionIcon, { backgroundColor: '#FFF7ED' }]}>
-                  <Calendar size={20} color="#EA580C" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.sectionTitle}>Appointment Info</Text>
-                  <View style={s.appointmentRow}>
-                    <Calendar size={16} color={COLORS.grey400} />
-                    <Text style={s.appointmentText}>
-                      {selectedBooking &&
-                        new Date(selectedBooking.date).toLocaleDateString(
-                          'en-US',
-                          {
-                            weekday: 'long',
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
-                          },
-                        )}
-                    </Text>
-                  </View>
-                  <View style={[s.appointmentRow, { marginTop: 6 }]}>
-                    <Clock size={16} color={COLORS.grey400} />
-                    <Text style={s.appointmentText}>
-                      {selectedBooking?.timeSlot || 'Morning Session'}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Actions */}
-            <View style={s.modalFooter}>
-              {selectedBooking?.status !== 'COMPLETED' &&
-                selectedBooking?.status !== 'CANCELLED' && (
                   <TouchableOpacity
-                    style={s.cancelBookingBtn}
-                    onPress={() => handleCancelClick(selectedBooking.id)}
-                    disabled={cancelMutation.isPending}
+                    onPress={closeDetailsModal}
+                    style={s.closeBtn}
                   >
-                    {cancelMutation.isPending ? (
-                      <ActivityIndicator size="small" color={COLORS.error} />
+                    <X size={24} color={COLORS.grey800} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  <View style={s.ratingContainer}>
+                    <Text style={s.ratingLabel}>
+                      How was your sample collection experience?
+                    </Text>
+                    <View style={s.starsRow}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <TouchableOpacity
+                          key={star}
+                          onPress={() => setRating(star)}
+                        >
+                          <Star
+                            size={36}
+                            color={rating >= star ? '#F59E0B' : COLORS.grey300}
+                            fill={rating >= star ? '#F59E0B' : 'transparent'}
+                            style={{ marginHorizontal: 4 }}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <Text style={s.ratingLabel}>
+                      Leave a comment (Optional)
+                    </Text>
+                    <TextInput
+                      style={s.commentInput}
+                      placeholder="Tell us about the rider and your experience..."
+                      placeholderTextColor={COLORS.grey400}
+                      multiline
+                      numberOfLines={4}
+                      value={ratingComment}
+                      onChangeText={setRatingComment}
+                      textAlignVertical="top"
+                    />
+                  </View>
+                </ScrollView>
+
+                <View style={s.modalFooter}>
+                  <TouchableOpacity
+                    style={[
+                      s.modalDownloadBtn,
+                      rating === 0 && { opacity: 0.5 },
+                    ]}
+                    onPress={handleSubmitRating}
+                    disabled={rating === 0 || rateMutation.isPending}
+                  >
+                    {rateMutation.isPending ? (
+                      <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <>
-                        <X size={18} color={COLORS.error} />
-                        <Text style={s.cancelBookingText}>Cancel Booking</Text>
-                      </>
+                      <Text style={s.modalDownloadText}>Submit Feedback</Text>
                     )}
                   </TouchableOpacity>
-                )}
-
-              {selectedBooking?.status === 'COMPLETED' &&
-                selectedBooking?.reportUrl && (
                   <TouchableOpacity
-                    style={s.modalDownloadBtn}
-                    onPress={() => Linking.openURL(selectedBooking.reportUrl)}
+                    style={s.doneBtn}
+                    onPress={() => setIsRatingMode(false)}
+                    disabled={rateMutation.isPending}
                   >
-                    <Download size={18} color="#fff" />
-                    <Text style={s.modalDownloadText}>Download Report</Text>
+                    <Text style={s.doneBtnText}>Back to Details</Text>
                   </TouchableOpacity>
-                )}
+                </View>
+              </>
+            ) : (
+              <>
+                {/* ── Details Mode ── */}
+                <View style={s.modalHeader}>
+                  <View>
+                    <Text style={s.modalTitle}>Booking Details</Text>
+                    <Text style={s.modalID}>
+                      Order ID: #{selectedBooking?.id}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={closeDetailsModal}
+                    style={s.closeBtn}
+                  >
+                    <X size={24} color={COLORS.grey800} />
+                  </TouchableOpacity>
+                </View>
 
-              <TouchableOpacity
-                style={s.doneBtn}
-                onPress={() => setShowModal(false)}
-              >
-                <Text style={s.doneBtnText}>Close</Text>
-              </TouchableOpacity>
-            </View>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Status Section */}
+                  <View style={s.detailSection}>
+                    <View
+                      style={[s.sectionIcon, { backgroundColor: '#E0F2FE' }]}
+                    >
+                      <Info size={20} color="#0284C7" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.sectionTitle}>Booking Status</Text>
+                      <View style={s.detailRow}>
+                        <Text style={s.detailLabel}>Status:</Text>
+                        <View
+                          style={[
+                            s.statusBadge,
+                            selectedBooking?.status === 'COMPLETED'
+                              ? { backgroundColor: COLORS.successLight }
+                              : { backgroundColor: COLORS.secondaryLight },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              s.statusText,
+                              selectedBooking?.status === 'COMPLETED'
+                                ? { color: COLORS.success }
+                                : { color: COLORS.secondary },
+                            ]}
+                          >
+                            {selectedBooking?.status}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={s.detailRow}>
+                        <Text style={s.detailLabel}>Payment:</Text>
+                        <Text style={s.paymentStatusText}>
+                          {selectedBooking?.paymentStatus}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Items Section */}
+                  <View style={s.detailSection}>
+                    <View
+                      style={[s.sectionIcon, { backgroundColor: '#F0FDF4' }]}
+                    >
+                      <ShieldCheck size={20} color="#16A34A" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.sectionTitle}>Tests Booked</Text>
+                      {selectedBooking?.items.map((item: any, idx: number) => (
+                        <View key={idx} style={s.itemRow}>
+                          <Text style={s.itemName} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+                          <Text style={s.itemPrice}>₹{item.price}</Text>
+                        </View>
+                      ))}
+                      <View style={s.totalDivider} />
+                      <View style={s.itemRow}>
+                        <Text style={s.totalLabel}>Total Amount</Text>
+                        <Text style={s.totalValue}>
+                          ₹
+                          {selectedBooking?.items.reduce(
+                            (acc: number, curr: any) => acc + curr.price,
+                            0,
+                          )}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Appointment Section */}
+                  <View style={s.detailSection}>
+                    <View
+                      style={[s.sectionIcon, { backgroundColor: '#FFF7ED' }]}
+                    >
+                      <Calendar size={20} color="#EA580C" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.sectionTitle}>Appointment Info</Text>
+                      <View style={s.appointmentRow}>
+                        <Calendar size={16} color={COLORS.grey400} />
+                        <Text style={s.appointmentText}>
+                          {selectedBooking &&
+                            new Date(selectedBooking.date).toLocaleDateString(
+                              'en-US',
+                              {
+                                weekday: 'long',
+                                month: 'long',
+                                day: 'numeric',
+                                year: 'numeric',
+                              },
+                            )}
+                        </Text>
+                      </View>
+                      <View style={[s.appointmentRow, { marginTop: 6 }]}>
+                        <Clock size={16} color={COLORS.grey400} />
+                        <Text style={s.appointmentText}>
+                          {selectedBooking?.timeSlot || 'Morning Session'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </ScrollView>
+
+                {/* Actions */}
+                <View style={s.modalFooter}>
+                  {selectedBooking?.status !== 'COMPLETED' &&
+                    selectedBooking?.status !== 'CANCELLED' && (
+                      <TouchableOpacity
+                        style={s.cancelBookingBtn}
+                        onPress={() => handleCancelClick(selectedBooking.id)}
+                        disabled={cancelMutation.isPending}
+                      >
+                        {cancelMutation.isPending ? (
+                          <ActivityIndicator
+                            size="small"
+                            color={COLORS.error}
+                          />
+                        ) : (
+                          <>
+                            <X size={18} color={COLORS.error} />
+                            <Text style={s.cancelBookingText}>
+                              Cancel Booking
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                  {selectedBooking?.status === 'COMPLETED' &&
+                    selectedBooking?.reportUrl && (
+                      <TouchableOpacity
+                        style={s.modalDownloadBtn}
+                        onPress={() =>
+                          Linking.openURL(selectedBooking.reportUrl)
+                        }
+                      >
+                        <Download size={18} color="#fff" />
+                        <Text style={s.modalDownloadText}>Download Report</Text>
+                      </TouchableOpacity>
+                    )}
+
+                  {selectedBooking?.status === 'COMPLETED' && (
+                    <TouchableOpacity
+                      style={[
+                        s.doneBtn,
+                        { backgroundColor: '#F0F9FF', marginBottom: 12 },
+                      ]}
+                      onPress={() => setIsRatingMode(true)}
+                    >
+                      <Star size={18} color="#0284C7" />
+                      <Text
+                        style={[
+                          s.doneBtnText,
+                          { color: '#0284C7', marginLeft: 8 },
+                        ]}
+                      >
+                        Rate Rider
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={s.doneBtn}
+                    onPress={closeDetailsModal}
+                  >
+                    <Text style={s.doneBtnText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -962,5 +1123,30 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.grey700,
+  },
+  ratingContainer: {
+    paddingVertical: 10,
+  },
+  ratingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.grey800,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  starsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  commentInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 16,
+    height: 120,
+    fontSize: 15,
+    color: COLORS.grey800,
   },
 });
